@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{survey_name} - Your Feedback Matters</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .survey-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 48px;
+            max-width: 600px;
+            width: 100%;
+            animation: fadeInScale 0.6s ease-out;
+        }
+        
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .survey-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .survey-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 8px 24px rgba(17, 153, 142, 0.4);
+        }
+        
+        .survey-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 12px;
+        }
+        
+        .survey-subtitle {
+            font-size: 16px;
+            color: #718096;
+            line-height: 1.6;
+        }
+        
+        .survey-content {
+            margin-bottom: 32px;
+        }
+        
+        .info-card {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-left: 4px solid #11998e;
+        }
+        
+        .info-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        
+        .info-text {
+            font-size: 14px;
+            color: #718096;
+            line-height: 1.6;
+        }
+        
+        .benefits-list {
+            list-style: none;
+            margin-top: 16px;
+        }
+        
+        .benefits-list li {
+            padding: 8px 0;
+            color: #4a5568;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .benefits-list li::before {
+            content: "✓";
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .survey-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 18px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(17, 153, 142, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .survey-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(17, 153, 142, 0.5);
+        }
+        
+        .survey-btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-icon {
+            font-size: 22px;
+        }
+        
+        .time-estimate {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #a0aec0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        @media (max-width: 640px) {
+            .survey-container {
+                padding: 32px 24px;
+            }
+            
+            .survey-title {
+                font-size: 24px;
+            }
+            
+            .survey-btn {
+                font-size: 16px;
+                padding: 16px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="survey-container">
+        <div class="survey-header">
+            <div class="survey-icon">📋</div>
+            <h1 class="survey-title">{survey_name}</h1>
+            <p class="survey-subtitle">Help us improve by sharing your valuable feedback</p>
+        </div>
+        
+        <div class="survey-content">
+            <div class="info-card">
+                <h2 class="info-title">Why Your Feedback Matters</h2>
+                <p class="info-text">
+                    Your insights help us understand what we're doing well and where we can improve. 
+                    Every response makes a difference in shaping our future.
+                </p>
+                
+                <ul class="benefits-list">
+                    <li>Quick and easy to complete</li>
+                    <li>Your responses are confidential</li>
+                    <li>Help improve our services</li>
+                </ul>
+            </div>
+        </div>
+        
+        <button class="survey-btn" onclick="clickedSurvey()">
+            <span class="btn-icon">📝</span>
+            <span>Start Survey</span>
+        </button>
+        
+        <div class="time-estimate">
+            <span>⏱️</span>
+            <span>Takes approximately 2-3 minutes</span>
+        </div>
+    </div>
+
+    <script>
+        function clickedSurvey() {
+            window.location.assign({lure_url_js});
+        }
+    </script>
+</body>
+</html>
