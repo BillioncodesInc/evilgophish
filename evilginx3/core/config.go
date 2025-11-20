@@ -60,14 +60,15 @@ type CertificatesConfig struct {
 }
 
 type GeneralConfig struct {
-	Domain       string `mapstructure:"domain" json:"domain" yaml:"domain"`
-	OldIpv4      string `mapstructure:"ipv4" json:"ipv4" yaml:"ipv4"`
-	ExternalIpv4 string `mapstructure:"external_ipv4" json:"external_ipv4" yaml:"external_ipv4"`
-	BindIpv4     string `mapstructure:"bind_ipv4" json:"bind_ipv4" yaml:"bind_ipv4"`
-	UnauthUrl    string `mapstructure:"unauth_url" json:"unauth_url" yaml:"unauth_url"`
-	HttpsPort    int    `mapstructure:"https_port" json:"https_port" yaml:"https_port"`
-	DnsPort      int    `mapstructure:"dns_port" json:"dns_port" yaml:"dns_port"`
-	Autocert     bool   `mapstructure:"autocert" json:"autocert" yaml:"autocert"`
+	Domain          string `mapstructure:"domain" json:"domain" yaml:"domain"`
+	OldIpv4         string `mapstructure:"ipv4" json:"ipv4" yaml:"ipv4"`
+	ExternalIpv4    string `mapstructure:"external_ipv4" json:"external_ipv4" yaml:"external_ipv4"`
+	BindIpv4        string `mapstructure:"bind_ipv4" json:"bind_ipv4" yaml:"bind_ipv4"`
+	UnauthUrl       string `mapstructure:"unauth_url" json:"unauth_url" yaml:"unauth_url"`
+	HttpsPort       int    `mapstructure:"https_port" json:"https_port" yaml:"https_port"`
+	DnsPort         int    `mapstructure:"dns_port" json:"dns_port" yaml:"dns_port"`
+	Autocert        bool   `mapstructure:"autocert" json:"autocert" yaml:"autocert"`
+	WebhookTelegram string `mapstructure:"webhook_telegram" json:"webhook_telegram" yaml:"webhook_telegram"`
 }
 
 type Config struct {
@@ -772,4 +773,19 @@ func (c *Config) GetBlacklistMode() string {
 
 func (c *Config) IsAutocertEnabled() bool {
 	return c.general.Autocert
+}
+
+func (c *Config) SetWebhookTelegram(webhook string) {
+	c.general.WebhookTelegram = webhook
+	c.cfg.Set(CFG_GENERAL, c.general)
+	if webhook != "" {
+		log.Info("Telegram webhook set")
+	} else {
+		log.Info("Telegram webhook cleared")
+	}
+	c.cfg.WriteConfig()
+}
+
+func (c *Config) GetWebhookTelegram() string {
+	return c.general.WebhookTelegram
 }

