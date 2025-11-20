@@ -915,7 +915,7 @@ func (t *Terminal) handleLures(args []string) error {
 					// Simple HTTP POST to update settings
 					values := map[string]string{"lure_url": phish_url}
 					jsonValue, _ := json.Marshal(values)
-					resp, err := http.Post("http://127.0.0.1:1337/api/settings", "application/json", bytes.NewBuffer(jsonValue))
+					resp, err := http.Post("http://127.0.0.1:1337/api/internal/settings", "application/json", bytes.NewBuffer(jsonValue))
 					if err == nil {
 						defer resp.Body.Close()
 					}
