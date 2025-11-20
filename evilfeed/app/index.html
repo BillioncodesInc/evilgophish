@@ -1,28 +1,459 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>evilgophish live feed</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <base href="/" />
-    <link rel="stylesheet" href="/css/bulma.min.css">
-    <link rel="stylesheet" href="/css/evilfeed.css">
-  <body>
-      <section class="section">
-          <div class="container">
-       <h1 class="notification is-info">evilgophish live feed<div id="audio-control" class="muted">Unmute</div></h1>   
-<div class="columns">
-  <div class="column is-7">
-    <div id="feed">
+<html lang="en" class="h-full bg-gray-900">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexusFeed v2 - Live Phishing Command Center</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <style>
+    [x-cloak] { display: none !important; }
+    .animate-pulse-once { animation: pulse-glow 1s ease-out; }
+    @keyframes pulse-glow {
+        0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.2); transform: scale(1.02); }
+        100% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); transform: scale(1); }
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #111827; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+    .leaflet-container { background: #111827; }
+  </style>
+</head>
+<body class="h-full text-gray-100 font-sans antialiased" x-data="nexusfeed()" x-init="init()">
+
+  <div class="flex h-full">
+    <!-- Sidebar Navigation -->
+    <div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+      <div class="p-6 border-b border-gray-700">
+        <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+            <span>⚡</span> NexusFeed <span class="text-xs text-blue-400 font-mono bg-blue-900/30 px-1 rounded">v2.0</span>
+        </h1>
+        <p class="text-xs text-gray-500 mt-1">Real-time AiTM Command Center</p>
+      </div>
+      
+      <div class="p-4 border-b border-gray-700 flex-grow flex flex-col">
+          <h2 class="text-sm font-bold mb-2 text-gray-400 uppercase tracking-wider">Live Victim Map</h2>
+          <div id="map" class="flex-grow rounded-lg mb-4 min-h-[300px] border border-gray-600"></div>
+          
+          <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+            <div class="bg-green-900 p-3 rounded border border-green-700">
+                <div class="text-xs text-green-300 uppercase">Sessions</div>
+                <div class="text-2xl font-bold" x-text="stats.sessions">0</div>
+            </div>
+            <div class="bg-yellow-900 p-3 rounded border border-yellow-700">
+                <div class="text-xs text-yellow-300 uppercase">Credentials</div>
+                <div class="text-2xl font-bold" x-text="stats.creds">0</div>
+            </div>
+          </div>
+      </div>
+      
+      <nav class="p-4 space-y-1 overflow-y-auto flex-shrink-0">
+        <a href="#" @click.prevent="tab = 'dashboard'" :class="tab === 'dashboard' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
+            <span class="mr-3 text-lg">📊</span> Dashboard
+        </a>
+        <a href="#" @click.prevent="loadVisitors(); tab = 'visitors'" :class="tab === 'visitors' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
+            <span class="mr-3 text-lg">👀</span> Visitors
+        </a>
+        <a href="#" @click.prevent="loadCredentials(); tab = 'credentials'" :class="tab === 'credentials' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
+            <span class="mr-3 text-lg">🔑</span> Credentials
+        </a>
+        <a href="#" @click.prevent="loadCampaigns(); tab = 'campaigns'" :class="tab === 'campaigns' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
+            <span class="mr-3 text-lg">🚀</span> Campaigns
+        </a>
+        <a href="#" @click.prevent="loadSettings(); tab = 'settings'" :class="tab === 'settings' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
+            <span class="mr-3 text-lg">⚙️</span> Settings
+        </a>
+      </nav>
+
+      <div class="p-4 border-t border-gray-700">
+        <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+            <span>Status:</span>
+            <span :class="connected ? 'text-green-500' : 'text-red-500'" x-text="connected ? 'Connected' : 'Disconnected'"></span>
+        </div>
+        <button @click="clearLogs()" class="w-full px-3 py-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 text-xs rounded border border-red-900/50 transition-colors">
+            🗑️ Clear Logs
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-gray-900">
+      
+      <!-- Top Bar -->
+      <header class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
+        <h2 class="text-lg font-semibold text-white capitalize" x-text="tab"></h2>
+        <div class="flex items-center gap-4">
+            <button @click="toggleMute()" title="Toggle Mute" class="p-2 rounded bg-gray-700 hover:bg-gray-600 text-sm transition-colors">
+                <span x-text="muted ? '🔇' : '🔊'"></span>
+            </button>
+        </div>
+      </header>
+
+      <!-- Content Views -->
+      <main class="flex-1 overflow-y-auto p-6 relative">
+        
+        <!-- Dashboard View -->
+        <div x-show="tab === 'dashboard'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+            <div class="space-y-4 max-w-4xl mx-auto">
+                <h3 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-2">Live Activity Feed</h3>
+                
+                <template x-for="event in events" :key="event.id">
+                    <div :class="cardClass(event)" class="p-4 rounded-lg shadow-lg animate-pulse-once transition-all duration-300 border-l-4 bg-gray-800">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl" x-text="icon(event)"></span>
+                                <div>
+                                    <div class="font-bold text-white" x-text="event.username || event.ip || 'Anonymous'"></div>
+                                    <div class="text-xs text-gray-400 font-mono" x-text="formatTime(event.timestamp)"></div>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold px-2 py-1 rounded bg-gray-700 text-gray-300" x-text="event.phishlet || 'Unknown'"></span>
+                        </div>
+                        
+                        <div x-show="event.message && event.type !== 'session' && event.type !== 'credentials'" class="mt-2 text-gray-300 text-sm" x-html="event.message"></div>
+
+                        <div x-show="event.type === 'credentials'" class="mt-3 bg-black/30 p-2 rounded border border-yellow-900/30">
+                            <div class="grid grid-cols-1 gap-1 font-mono text-sm">
+                                <div class="truncate"><span class="text-gray-500">U:</span> <span class="text-white" x-text="event.username"></span></div>
+                                <div class="truncate"><span class="text-gray-500">P:</span> <span class="text-white" x-text="event.password"></span></div>
+                            </div>
+                        </div>
+
+                        <div x-show="event.type === 'session'" class="mt-3">
+                            <div class="flex gap-2">
+                                <button @click="copyTokens(event.tokens)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-xs py-1 rounded">Copy Tokens</button>
+                                <button @click="viewDetails(event)" class="flex-1 bg-purple-900/50 hover:bg-purple-900 text-purple-200 text-xs py-1 rounded border border-purple-700">View Details</button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                
+                <div x-show="events.length === 0" class="text-center text-gray-600 py-10">
+                    <p>Waiting for activity...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visitors View -->
+        <div x-show="tab === 'visitors'" x-cloak>
+            <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-900">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Time</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">IP Address</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Location</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Phishlet</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-gray-800 divide-y divide-gray-700">
+                        <template x-for="v in visitorData" :key="v.id">
+                            <tr class="hover:bg-gray-750">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300" x-text="formatTime(v.timestamp)"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-blue-400" x-text="v.ip"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300" x-text="v.geo ? (v.geo.city + ', ' + v.geo.country) : 'Unknown'"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300" x-text="v.phishlet"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" 
+                                          :class="v.event.includes('Opened') ? 'bg-blue-900 text-blue-200' : 'bg-green-900 text-green-200'"
+                                          x-text="v.event"></span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Credentials View -->
+        <div x-show="tab === 'credentials'" x-cloak>
+            <div class="grid grid-cols-1 gap-4">
+                <template x-for="c in credentialData" :key="c.id">
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-white" x-text="c.username"></h3>
+                                <p class="text-sm text-gray-400" x-text="c.phishlet + ' • ' + formatTime(c.timestamp)"></p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm font-mono text-blue-400" x-text="c.ip"></div>
+                                <div class="text-xs text-gray-500" x-text="c.geo ? c.geo.country : ''"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-black/30 p-3 rounded border border-gray-600">
+                                <div class="text-xs text-gray-500 uppercase mb-1">Password</div>
+                                <div class="font-mono text-yellow-400 break-all" x-text="c.password"></div>
+                            </div>
+                            <div class="bg-black/30 p-3 rounded border border-gray-600" x-show="c.tokens">
+                                <div class="flex justify-between items-center mb-1">
+                                    <div class="text-xs text-gray-500 uppercase">Session Tokens</div>
+                                    <button @click="copyTokens(c.tokens)" class="text-xs text-blue-400 hover:text-blue-300">Copy</button>
+                                </div>
+                                <div class="font-mono text-xs text-gray-400 truncate" x-text="c.tokens.substring(0, 50) + '...'"></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Campaigns View -->
+        <div x-show="tab === 'campaigns'" x-cloak>
+            <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h3 class="text-lg font-medium text-white">GoPhish Campaigns</h3>
+                    <button @click="loadCampaigns()" class="text-sm text-blue-400 hover:text-blue-300">Refresh</button>
+                </div>
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-900">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-gray-800 divide-y divide-gray-700">
+                        <template x-for="camp in campaignData" :key="camp.id">
+                            <tr class="hover:bg-gray-750">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400" x-text="camp.id"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white" x-text="camp.name"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" 
+                                          :class="camp.status === 'Completed' ? 'bg-green-900 text-green-200' : 'bg-yellow-900 text-yellow-200'"
+                                          x-text="camp.status"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400" x-text="new Date(camp.created_date).toLocaleDateString()"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="campaignData.length === 0">
+                            <td colspan="4" class="px-6 py-10 text-center text-gray-500">No campaigns found or database not accessible.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div x-show="tab === 'settings'" x-cloak>
+            <div class="space-y-6 max-w-4xl">
+                
+                <!-- Lure URL -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                    <h3 class="text-lg font-medium text-white mb-4">Active Lure URL</h3>
+                    <div class="flex gap-2">
+                        <input type="text" readonly :value="settings.lure_url" class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-gray-300 font-mono text-sm">
+                        <button @click="copyTokens(settings.lure_url)" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Copy</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Use <code>lures expose <id></code> in Evilginx terminal to update this.</p>
+                </div>
+
+                <!-- Telegram Config -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                    <h3 class="text-lg font-medium text-white mb-4">Telegram Configuration</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Webhook URL / Token</label>
+                            <input type="text" x-model="settings.telegram_webhook" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">Save Configuration</button>
+                    </div>
+                </div>
+
+                <!-- Whitelist -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                    <h3 class="text-lg font-medium text-white mb-4">IP Whitelist</h3>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" x-model="newWhitelistIP" placeholder="Enter IP address" class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                        <button @click="addWhitelist()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded">Add</button>
+                    </div>
+                    <div class="bg-gray-900 rounded border border-gray-600 p-2 max-h-40 overflow-y-auto">
+                        <template x-for="ip in whitelist" :key="ip">
+                            <div class="flex justify-between items-center p-2 hover:bg-gray-800 rounded">
+                                <span class="font-mono text-sm text-gray-300" x-text="ip"></span>
+                                <button class="text-red-400 hover:text-red-300 text-xs">Remove</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- GoPhish Defaults -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                    <h3 class="text-lg font-medium text-white mb-2">GoPhish Default Credentials</h3>
+                    <p class="text-sm text-gray-400 mb-4">These are the default credentials generated on first launch.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-black/30 p-3 rounded">
+                            <div class="text-xs text-gray-500 uppercase">Username</div>
+                            <div class="font-mono text-white">admin</div>
+                        </div>
+                        <div class="bg-black/30 p-3 rounded">
+                            <div class="text-xs text-gray-500 uppercase">Password</div>
+                            <div class="font-mono text-white">See gophish.log</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+      </main>
     </div>
   </div>
-</div>
-          </div>
-       </section>
-  </body>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.1.0/handlebars.min.js"></script>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script src="js/app.js"></script>
+
+  <audio id="alert" src="notify.mp3"></audio>
+
+  <script>
+    function nexusfeed() {
+      return {
+        tab: 'dashboard',
+        events: [], 
+        visitorData: [],
+        credentialData: [],
+        campaignData: [],
+        whitelist: [],
+        settings: { lure_url: 'Waiting for update...', telegram_webhook: '' },
+        newWhitelistIP: '',
+        stats: {sessions:0, creds:0}, 
+        map: null,
+        connected: false,
+        muted: true,
+        
+        init() {
+          this.connectWS();
+          this.initMap();
+          this.loadSettings();
+          this.loadWhitelist();
+        },
+        
+        toggleMute() { this.muted = !this.muted; },
+
+        connectWS() {
+          const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+          
+          ws.onopen = () => {
+              this.connected = true;
+              console.log("Connected to EvilFeed");
+          };
+
+          ws.onmessage = (e) => {
+            try {
+                const event = JSON.parse(e.data);
+                if (!event.id) event.id = Date.now() + Math.random();
+                
+                // Handle legacy format
+                if (!event.type && event.event) {
+                    if (event.event.includes("Session")) event.type = 'session';
+                    else if (event.event.includes("Submitted")) event.type = 'credentials';
+                    else if (event.event.includes("Clicked")) event.type = 'click';
+                    else event.type = 'open';
+                }
+
+                this.events.unshift(event);
+                if (this.events.length > 100) this.events.pop();
+
+                this.updateStats(event);
+                this.addMarker(event);
+                
+                // Play sound
+                if (!this.muted && (event.type === 'session' || event.type === 'credentials')) {
+                    const audio = document.getElementById('alert');
+                    if (audio) { audio.currentTime = 0; audio.play().catch(e => {}); }
+                }
+            } catch (err) { console.error(err); }
+          };
+          
+          ws.onclose = () => {
+              this.connected = false;
+              setTimeout(() => this.connectWS(), 2000);
+          };
+        },
+
+        initMap() {
+          if (document.getElementById('map')) {
+            this.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([20, 0], 1);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(this.map);
+          }
+        },
+
+        addMarker(e) {
+          if (this.map && e.geo && e.geo.lat && e.geo.lon) {
+            const color = e.type === 'session' ? '#d946ef' : (e.type === 'credentials' ? '#eab308' : '#22c55e');
+            L.circleMarker([e.geo.lat, e.geo.lon], { radius: 6, color: color, fillColor: color, fillOpacity: 0.7, weight: 0 }).addTo(this.map)
+              .bindPopup(`<div class="text-black"><strong>${e.username || e.ip}</strong><br>${e.phishlet}</div>`);
+          }
+        },
+
+        updateStats(e) {
+          if (e.type === 'session') this.stats.sessions++;
+          if (e.type === 'credentials') this.stats.creds++;
+        },
+
+        // API Calls
+        async loadVisitors() {
+            const res = await fetch('/api/visitors');
+            this.visitorData = await res.json();
+        },
+        async loadCredentials() {
+            const res = await fetch('/api/credentials');
+            this.credentialData = await res.json();
+        },
+        async loadCampaigns() {
+            const res = await fetch('/api/campaigns');
+            this.campaignData = await res.json();
+        },
+        async loadSettings() {
+            const res = await fetch('/api/settings');
+            this.settings = await res.json();
+        },
+        async loadWhitelist() {
+            const res = await fetch('/api/whitelist');
+            this.whitelist = await res.json();
+        },
+        async addWhitelist() {
+            if(!this.newWhitelistIP) return;
+            await fetch('/api/whitelist', {
+                method: 'POST',
+                body: JSON.stringify({ip: this.newWhitelistIP})
+            });
+            this.newWhitelistIP = '';
+            this.loadWhitelist();
+        },
+        async clearLogs() {
+            if(confirm('Clear all logs?')) {
+                await fetch('/api/logs/clear', { method: 'POST' });
+                this.events = [];
+                this.visitorData = [];
+                this.credentialData = [];
+                this.stats = {sessions:0, creds:0};
+            }
+        },
+
+        // Helpers
+        cardClass(e) { 
+            if (e.type === 'session') return 'border-purple-500 bg-gradient-to-r from-purple-900/20 to-transparent';
+            if (e.type === 'credentials') return 'border-yellow-500 bg-gradient-to-r from-yellow-900/20 to-transparent';
+            return 'border-gray-600'; 
+        },
+        badgeClass(e) { return e.score >= 50 ? 'bg-red-600 text-white' : 'bg-green-600 text-white'; },
+        icon(e) { 
+            if (e.type === 'session') return '🍪'; 
+            if (e.type === 'credentials') return '🔑'; 
+            if (e.type === 'click') return '🖱️';
+            return '👁️'; 
+        },
+        formatTime(t) { return t ? new Date(t).toLocaleString() : ''; },
+        copyTokens(tokens) { navigator.clipboard.writeText(tokens).then(() => alert("Copied!")); },
+        viewDetails(e) { alert(JSON.stringify(e, null, 2)); }
+      }
+    }
+  </script>
+</body>
 </html>

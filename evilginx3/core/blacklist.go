@@ -160,6 +160,13 @@ func (bl *Blacklist) IsWhitelisted(ip string) bool {
 	return false
 }
 
+// ReloadWhitelist reloads whitelist IPs from file
+func (bl *Blacklist) ReloadWhitelist() {
+	bl.whitelistIps = make(map[string]*BlockIP)
+	bl.whitelistMasks = []*BlockIP{}
+	bl.loadWhitelist()
+}
+
 // loadWhitelist loads whitelist IPs from file
 func (bl *Blacklist) loadWhitelist() {
 	f, err := os.OpenFile(bl.whitelistPath, os.O_CREATE|os.O_RDONLY, 0644)

