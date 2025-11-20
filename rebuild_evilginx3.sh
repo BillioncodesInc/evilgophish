@@ -24,6 +24,18 @@ if [[ ! -d "evilginx3" ]]; then
     exit 1
 fi
 
+# Check for GeoIP database
+if [[ ! -f "evilginx3/GeoLite2-City.mmdb" ]]; then
+    print_info "GeoLite2-City.mmdb not found. Downloading..."
+    if wget -O evilginx3/GeoLite2-City.mmdb "https://git.io/GeoLite2-City.mmdb"; then
+        print_good "Downloaded GeoLite2-City.mmdb"
+    else
+        print_error "Failed to download GeoLite2-City.mmdb"
+    fi
+else
+    print_info "GeoLite2-City.mmdb found."
+fi
+
 print_info "Rebuilding evilginx3 binary..."
 
 # Navigate to evilginx3 directory and build
