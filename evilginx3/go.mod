@@ -14,12 +14,16 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/inconshreveable/go-vhost v0.0.0-20160627193104-06d84117953b
 	github.com/jinzhu/gorm v1.9.16
+	github.com/libdns/cloudflare v0.2.2
+	github.com/libdns/gandi v1.1.0
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/miekg/dns v1.1.68
 	github.com/mwitkow/go-http-dialer v0.0.0-20161116154839-378f744fb2b8
+	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/spf13/viper v1.10.1
 	github.com/tdewolff/minify/v2 v2.24.7
 	github.com/tidwall/buntdb v1.1.0
+	github.com/titanous/json5 v1.0.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.43.0
 )
@@ -35,16 +39,12 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/libdns/cloudflare v0.2.2 // indirect
-	github.com/libdns/gandi v1.1.0 // indirect
 	github.com/libdns/libdns v1.1.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/mholt/acmez v1.2.0 // indirect
 	github.com/mholt/acmez/v3 v3.1.3 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
-	github.com/oschwald/geoip2-golang v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/spf13/afero v1.8.1 // indirect

