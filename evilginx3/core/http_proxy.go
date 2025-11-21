@@ -220,6 +220,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 						if p.bl.IsVerbose() {
 							log.Warning("blacklist: request from ip address '%s' was blocked", from_ip)
 						}
+						database.HandleBlockedRequest(from_ip, req.UserAgent(), "Blacklisted IP", p.livefeed, "")
 						return p.blockRequest(req)
 					}
 					if p.cfg.GetBlacklistMode() == "all" {
@@ -401,6 +402,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 													}
 												}
 											}
+											database.HandleBlockedRequest(remote_addr, req.UserAgent(), "User-Agent Filter", p.livefeed, pl_name)
 											return p.blockRequest(req)
 										}
 									} else {
@@ -500,6 +502,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 										}
 									}
 								}
+								database.HandleBlockedRequest(remote_addr, req.UserAgent(), "Unauthorized Request", p.livefeed, pl_name)
 								return p.blockRequest(req)
 							}
 						} else {

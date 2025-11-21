@@ -322,6 +322,29 @@ func captchaHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func verifyCaptchaHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CaptchaID     string `json:"captcha_id"`
+		CaptchaAnswer int    `json:"captcha_answer"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	captchaMutex.RLock()
+	expected, ok := captchaStore[req.CaptchaID]
+	captchaMutex.RUnlock()
+
+	if !ok || expected != req.CaptchaAnswer {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Incorrect captcha"})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
 func loginAPIHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Password      string `json:"password"`
@@ -640,6 +663,7 @@ func main() {
 	http.HandleFunc("/login", loginPageHandler)
 	http.HandleFunc("/api/login", loginAPIHandler)
 	http.HandleFunc("/api/captcha", captchaHandler)
+	http.HandleFunc("/api/verify-captcha", verifyCaptchaHandler)
 	http.HandleFunc("/api/change-password", changePasswordHandler)
 
 	// Protected Routes

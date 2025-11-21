@@ -9,6 +9,7 @@
   * [Why?](#why)
   * [Background](#background)
   * [Infrastructure Layout](#infrastructure-layout)
+  * [VPS Setup (Important)](#vps-setup-important)
   * [setup.sh](#setupsh)
   * [Cloudflare Turnstile Setup](#cloudflare-turnstile-setup)
   * [Cloudflare Turnstile HTML Template Guide](#cloudflare-turnstile-html-template-guide)
@@ -17,9 +18,12 @@
   * [QR Code Generator](#qr-code-generator)
   * [SMS Campaign Setup](#sms-campaign-setup)
   * [Live Feed Setup](#live-feed-setup)
+  * [EvilFeed Authentication](#evilfeed-authentication)
+  * [Wildcard Certificate Support](#wildcard-certificate-support)
+  * [IP Whitelist](#ip-whitelist)
   * [A Word About Phishlets](#a-word-about-phishlets)  
   * [A Word About The Evilginx3 Update](#a-word-about-the-evilginx3-update)
-  * [Debugging](#debugging)
+  * [Debugging & Troubleshooting](#debugging--troubleshooting)
   * [Installation Notes](#installation-notes)
   * [A Note About Campaign Testing And Tracking](#a-note-about-campaign-testing-and-tracking)
   * [A Note About The Blacklist and Tracking](#a-note-about-the-blacklist-and-tracking)  
@@ -69,6 +73,14 @@ In this setup, `GoPhish` is used to send emails and provide a dashboard for `evi
 - `GoPhish` will listen locally on port `8080` and `3333` (phishing server on port `8080` is not used)
 - `Cloudflare Turnstile` server will listen locally on port `80`
 
+## VPS Setup (Important)
+
+When launching a new VPS, before cloning the repo, you should run the following commands to prepare the environment and fix potential DNS issues:
+
+```bash
+sudo apt update && sudo apt upgrade -y && sudo apt install network-manager tmux -y && sudo systemctl stop systemd-resolved && sudo systemctl disable systemd-resolved && sudo bash -c 'echo -e "[main]\ndns=default" > /etc/NetworkManager/NetworkManager.conf' && sudo systemctl restart NetworkManager && sudo rm /etc/resolv.conf && echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf && echo "nameserver 1.0.0.1" | sudo tee -a /etc/resolv.conf
+```
+
 ## setup.sh
 
 `setup.sh` has been provided to automate the needed configurations for you. Once this script is run and you've fed it the right values, you should be ready to get started. Below is the setup help:
@@ -96,7 +108,7 @@ Example:
 5. When starting `evilginx3`, include the public/private keys with the `turnstile` flag separated by a `:`. For example:
 
 ```Bash
-./evilginx3 -feed -g ../gophish/gophish.db -turnstile <PUBLIC_KEY>:<PRIVATE_KEY>
+sudo ./evilginx3 -feed -g /root/evilgophish/gophish/gophish.db -turnstile <PUBLIC_KEY>:<PRIVATE_KEY>
 ```
 
 Blog post [here](https://fin3ss3g0d.net/index.php/2024/04/08/evilgophishs-approach-to-advanced-bot-detection-with-cloudflare-turnstile/).
@@ -191,9 +203,9 @@ Realtime campaign event notifications are handled by a local websocket/http serv
 
 3. When starting `evilginx3`, supply the `-feed` flag to enable the feed. For example:
 
-`./evilginx3 -feed -g /opt/evilgophish/gophish/gophish.db`
+`sudo ./evilginx3 -feed -g /root/evilgophish/gophish/gophish.db -turnstile <PUBLIC_KEY>:<PRIVATE_KEY>`
 
-4. You can begin viewing the live feed at: `http://localhost:1337/`. The feed dashboard will look like below:
+4. You can begin viewing the live feed at: `http://<YOUR_SERVER_IP>:1337/`. The feed dashboard will look like below:
 
 ![live-feed](images/live-feed.png)
 
@@ -201,13 +213,79 @@ Realtime campaign event notifications are handled by a local websocket/http serv
 
 - The live feed page hooks a websocket for events with `JavaScript` and you **DO NOT** need to refresh the page. If you refresh the page, you will **LOSE** all events up to that point.
 
+## EvilFeed Authentication
+
+EvilFeed is now protected by a secure authentication system.
+
+1.  **Initial Setup:** On the first launch of `./evilfeed`, a random admin password will be generated and printed to the terminal.
+2.  **Login:** Navigate to the dashboard URL. You will be presented with a **Math Captcha** to prevent automated access.
+3.  **First Login:** Enter the generated password. You will be immediately prompted to set a new, secure password.
+4.  **Dashboard Access:** Once authenticated, you will have access to the live feed.
+
+## Wildcard Certificate Support
+
+`evilginx3` now supports obtaining wildcard certificates (e.g., `*.example.com`) using DNS-01 challenges. This allows you to use any subdomain for your phishlets without needing to obtain a new certificate for each one.
+
+**Supported Providers:**
+-   Gandi (LiveDNS)
+-   Cloudflare
+
+**Configuration:**
+To enable wildcard support, you must configure your DNS provider credentials in the `evilginx3` terminal:
+
+```bash
+# For Gandi
+config dns_provider gandi
+config dns_api_key YOUR_API_KEY
+
+# For Cloudflare
+config dns_provider cloudflare
+config dns_api_key YOUR_API_TOKEN
+```
+
+Once configured, `evilginx3` will automatically attempt to obtain a wildcard certificate for your base domain.
+
+## IP Whitelist
+
+You can whitelist IP addresses to bypass the blacklist and bot detection.
+
+**Usage:**
+-   **EvilFeed Dashboard:** Go to the "Settings" tab and add IPs to the whitelist.
+-   **Evilginx Terminal:** Use the `whitelist` command:
+    ```bash
+    whitelist add <ip>
+    whitelist remove <ip>
+    whitelist clear
+    ```
+
+## Lure URL Exposure
+
+You can now easily expose a generated lure URL to the EvilFeed settings page for quick access.
+
+**Usage:**
+In the `evilginx3` terminal:
+```bash
+lures expose <id>
+```
+This will update the "Active Lure URL" field in the EvilFeed settings tab.
+
 ## A Word About Phishlets
 
-Since this is the sponsor's repository, I am planning on adding some new `phishlets`! Stay tuned.
+Since this is billion_laughs's repository, I am planning on adding some new `phishlets`! Stay tuned.
 
 ## A Word About The Evilginx3 Update
 
 On `May 10, 2023` [Kuba Gretzky](https://github.com/kgretzky) updated `evilginx` `2.4.0` to version `3.0.0`. You can find a detailed blog post about changes to the tool here: [evilginx3+mastery](https://breakdev.org/evilginx-3-0-evilginx-mastery/). Most notably, changes to the `phishlet` file format will most likely break `phishlets` before version `3.0.0` and they will have to be rewritten. While it may be work to rewrite them, there are added benefits with the new `phishlet` file format. Documentation on the `phishlet` format for version `3.0.0` can be found here: [Phishlet Format v3.0.0](https://help.evilginx.com/docs/phishlet-format). `Phishlets` in the legacy format will still be kept in this repository in the folder `evilginx3/legacy_phishlets`. `Phishlets` compatible with version `3.0.0` will be stored in `evilginx3/phishlets`. Not all of the legacy `phishlets` have been converted to version `3.x.x` format yet, I will continue to update them as time allows!
+
+## Debugging & Troubleshooting
+
+### DNS 53 Failure
+If you experience a DNS 53 failure during runtime, you should exit `evilginx` and run the following commands to reset the network manager and kill any lingering instances:
+
+```bash
+sudo systemctl stop systemd-resolved && sudo systemctl disable systemd-resolved && sudo systemctl restart NetworkManager
+pkill evilginx3
+```
 
 ## Installation Notes
 
@@ -231,7 +309,7 @@ See the `CHANGELOG.md` file for changes made since the initial release.
 
 ## Issues and Support
 
-Since this is the sponsor's repository, there is the potential for me to provide additional support but my schedule is still extremely busy. I will try my best!
+Since this is billion_laughs's repository, there is the potential for me to provide additional support but my schedule is still extremely busy. I will try my best!
 
 ## Future Goals
 

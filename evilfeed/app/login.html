@@ -1,130 +1,183 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-900">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NexusFeed - Authentication</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         [x-cloak] { display: none !important; }
         body {
-            background-image: url('bg.png');
+            background: url('bg.png') no-repeat center center fixed;
             background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
+            font-family: 'Inter', sans-serif;
         }
-        .glass-panel {
-            background: rgba(17, 24, 39, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        
+        /* Login Page Styles */
+        .login-container {
+            background: transparent; /* Fully transparent as requested */
         }
-        .neon-input {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(59, 130, 246, 0.3);
+        
+        .autistic-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
             transition: all 0.3s ease;
+            color: white;
+            border-radius: 0;
+            padding-left: 0;
         }
-        .neon-input:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        .autistic-input:focus {
+            background: transparent;
+            border-bottom-color: #00f2ff; /* Cyan glow */
+            box-shadow: 0 1px 0 0 #00f2ff;
             outline: none;
         }
-        .neon-btn {
-            background: linear-gradient(45deg, #2563eb, #1d4ed8);
+        .autistic-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .autistic-btn {
+            background: transparent;
+            color: #00f2ff;
+            border: 1px solid transparent; /* Minimal */
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 3px;
             position: relative;
             overflow: hidden;
-            transition: all 0.3s ease;
         }
-        .neon-btn:hover {
-            box-shadow: 0 0 15px rgba(37, 99, 235, 0.5);
-            transform: translateY(-1px);
+        .autistic-btn:hover {
+            text-shadow: 0 0 10px rgba(0, 242, 255, 0.8);
+            transform: scale(1.05);
         }
-        .captcha-box {
-            background: rgba(255, 255, 255, 0.9);
-            color: #1f2937;
+        .autistic-btn::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0%;
+            height: 1px;
+            background: #00f2ff;
+            transition: width 0.3s;
+        }
+        .autistic-btn:hover::after {
+            width: 100%;
+        }
+
+        /* Captcha Styles */
+        .captcha-card {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .captcha-input-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+        .captcha-input-box:focus-within {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
     </style>
 </head>
 <body class="h-full flex items-center justify-center" x-data="loginApp()">
-    
-    <div class="w-full max-w-md p-8 rounded-2xl glass-panel shadow-2xl mx-4">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-white tracking-wider mb-2">NexusFeed</h1>
-            <p class="text-blue-400 text-sm font-mono">SECURE COMMAND CENTER</p>
-        </div>
 
-        <!-- Login Form -->
-        <div x-show="!resetMode" x-transition>
-            <div class="mb-6">
-                <div class="bg-white rounded-xl p-6 shadow-lg mb-6">
-                    <div class="flex items-center gap-2 mb-3 text-gray-700 font-semibold">
-                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Human Check
-                    </div>
-                    <p class="text-sm text-gray-500 mb-4">Solve the math problem to continue.</p>
-                    
-                    <div class="flex gap-3 items-center">
-                        <div class="bg-gray-100 px-4 py-2 rounded-lg font-mono text-lg font-bold text-gray-800 border border-gray-200 min-w-[100px] text-center" x-text="captcha.question">
-                            ...
-                        </div>
-                        <span class="text-gray-400">=</span>
-                        <input type="number" x-model="captchaAnswer" class="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" placeholder="?">
-                        <button @click="loadCaptcha()" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Refresh Captcha">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                        </button>
-                    </div>
+    <!-- Step 1: Captcha (White Page Overlay) -->
+    <div x-show="step === 'captcha'" class="fixed inset-0 bg-white z-50 flex items-center justify-center" x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div class="bg-white p-8 rounded-2xl captcha-card max-w-md w-full mx-4 border border-gray-100">
+            <div class="flex items-center gap-3 mb-2">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <h2 class="text-xl font-bold text-gray-900">Human Check</h2>
+            </div>
+            
+            <p class="text-gray-500 text-sm mb-6">Solve a small math problem to continue.</p>
+            
+            <div class="flex items-center gap-3 mb-6">
+                <!-- Math Problem Display -->
+                <div class="bg-gray-100 px-4 py-3 rounded-lg font-mono text-lg font-medium text-gray-700 border border-gray-200 min-w-[100px] text-center select-none" x-text="captcha.question + ' = ?'">
+                    ...
+                </div>
+                
+                <!-- Answer Input -->
+                <div class="flex-1 relative">
+                    <input type="number" x-model="captchaAnswer" @keyup.enter="verifyCaptcha()" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 pl-4" placeholder="Answer">
                 </div>
 
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wide">Password</label>
-                        <input type="password" x-model="password" @keyup.enter="login()" class="w-full neon-input rounded-lg px-4 py-3 text-white placeholder-gray-600" placeholder="Enter access code">
+                <!-- Refresh Button -->
+                <button @click="loadCaptcha()" class="p-3 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Refresh Challenge">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+            </div>
+
+            <div class="flex justify-end">
+                <!-- Verify Button (Cloudflare style) -->
+                <button @click="verifyCaptcha()" :disabled="loading" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                    Verify
+                </button>
+            </div>
+            
+            <div x-show="error && step === 'captcha'" class="mt-4 text-red-500 text-xs text-center" x-text="error"></div>
+        </div>
+    </div>
+    
+    <!-- Step 2: Login / Reset -->
+    <div x-show="step === 'login' || step === 'reset'" class="w-full max-w-md p-8 mx-4 login-container" x-cloak x-transition:enter="transition ease-out duration-700 delay-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
+        
+        <!-- Login Form -->
+        <div x-show="step === 'login'" x-transition>
+            <div class="space-y-10">
+                <div class="relative">
+                    <label class="block text-white text-sm font-light mb-2 tracking-wide">Password</label>
+                    <input type="password" x-model="password" @keyup.enter="login()" class="w-full autistic-input py-2 text-xl" placeholder="">
+                    <div class="text-right mt-1">
+                        <span class="text-[10px] text-gray-400 uppercase tracking-widest">Please fill out this field.</span>
                     </div>
-                    
-                    <button @click="login()" :disabled="loading" class="w-full neon-btn text-white font-bold py-3 rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
+                </div>
+                
+                <div class="text-center">
+                    <button @click="login()" :disabled="loading" class="autistic-btn py-2 px-8 text-lg font-light disabled:opacity-50">
                         <span x-show="!loading">SIGN IN</span>
-                        <span x-show="loading" class="animate-spin">⌛</span>
+                        <span x-show="loading" class="animate-pulse">...</span>
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Reset Password Form -->
-        <div x-show="resetMode" x-cloak x-transition>
-            <div class="text-center mb-6">
-                <div class="inline-block p-3 rounded-full bg-yellow-900/30 text-yellow-400 mb-3 border border-yellow-700/50">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                </div>
-                <h2 class="text-xl font-bold text-white">Setup New Password</h2>
-                <p class="text-sm text-gray-400 mt-1">Please set a secure password for your admin account.</p>
+        <div x-show="step === 'reset'" x-cloak x-transition>
+            <div class="text-center mb-10">
+                <h2 class="text-lg font-light text-white tracking-[0.2em] uppercase">Update Credentials</h2>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-8">
                 <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wide">New Password</label>
-                    <input type="password" x-model="newPassword" class="w-full neon-input rounded-lg px-4 py-3 text-white placeholder-gray-600">
+                    <label class="block text-white text-xs font-light mb-1 tracking-wide">NEW CODE</label>
+                    <input type="password" x-model="newPassword" class="w-full autistic-input py-2 text-lg">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wide">Confirm Password</label>
-                    <input type="password" x-model="confirmPassword" class="w-full neon-input rounded-lg px-4 py-3 text-white placeholder-gray-600">
+                    <label class="block text-white text-xs font-light mb-1 tracking-wide">CONFIRM CODE</label>
+                    <input type="password" x-model="confirmPassword" class="w-full autistic-input py-2 text-lg">
                 </div>
                 
-                <button @click="resetPassword()" :disabled="loading" class="w-full neon-btn text-white font-bold py-3 rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                    UPDATE PASSWORD
-                </button>
+                <div class="text-center pt-4">
+                    <button @click="resetPassword()" :disabled="loading" class="autistic-btn py-2 px-6 text-sm font-light disabled:opacity-50">
+                        UPDATE
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Error Message -->
-        <div x-show="error" x-transition class="mt-4 p-3 bg-red-900/50 border border-red-700/50 rounded-lg text-red-200 text-sm text-center" x-text="error"></div>
+        <div x-show="error && step !== 'captcha'" x-transition class="mt-8 text-red-400 text-xs text-center tracking-widest uppercase" x-text="error"></div>
 
     </div>
 
     <script>
         function loginApp() {
             return {
-                resetMode: false,
+                step: 'captcha', // captcha, login, reset
                 loading: false,
                 error: '',
                 password: '',
@@ -142,14 +195,49 @@
                         const res = await fetch('/api/captcha');
                         this.captcha = await res.json();
                         this.captchaAnswer = '';
+                        this.error = '';
                     } catch (e) {
                         this.error = 'Failed to load captcha';
                     }
                 },
 
+                async verifyCaptcha() {
+                    if (!this.captchaAnswer) {
+                        this.error = 'Please enter an answer';
+                        return;
+                    }
+                    this.loading = true;
+                    this.error = '';
+                    
+                    try {
+                        const res = await fetch('/api/verify-captcha', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                captcha_id: this.captcha.id,
+                                captcha_answer: parseInt(this.captchaAnswer)
+                            })
+                        });
+                        
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            // Success - move to login
+                            this.step = 'login';
+                        } else {
+                            this.error = data.error || 'Incorrect answer';
+                            this.loadCaptcha(); // Refresh on failure
+                        }
+                    } catch (e) {
+                        this.error = 'Connection error';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
                 async login() {
-                    if (!this.password || !this.captchaAnswer) {
-                        this.error = 'Please fill in all fields';
+                    if (!this.password) {
+                        this.error = 'Password required';
                         return;
                     }
                     
@@ -171,14 +259,18 @@
                         
                         if (res.ok) {
                             if (data.status === 'reset_required') {
-                                this.resetMode = true;
+                                this.step = 'reset';
                                 this.error = '';
                             } else {
                                 window.location.href = '/';
                             }
                         } else {
-                            this.error = data.error || 'Login failed';
-                            this.loadCaptcha(); // Refresh captcha on failure
+                            this.error = data.error || 'Access denied';
+                            // If captcha expired or invalid (shouldn't happen if verified, but possible if timed out)
+                            if (data.error && data.error.includes('captcha')) {
+                                this.step = 'captcha';
+                                this.loadCaptcha();
+                            }
                         }
                     } catch (e) {
                         this.error = 'Connection error';
@@ -215,7 +307,7 @@
                         if (res.ok) {
                             window.location.href = '/';
                         } else {
-                            this.error = data.error || 'Failed to update password';
+                            this.error = data.error || 'Update failed';
                         }
                     } catch (e) {
                         this.error = 'Connection error';
