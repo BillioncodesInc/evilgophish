@@ -143,7 +143,13 @@ func main() {
 		return
 	}
 
-	bl, err := core.NewBlacklist(filepath.Join(*cfg_dir, "blacklist.txt"))
+	blacklistPath := filepath.Join(*cfg_dir, "blacklist.txt")
+	customBlacklistPath := joinPath(exe_dir, "./Custom/blacklist.txt")
+	if _, err := os.Stat(customBlacklistPath); !os.IsNotExist(err) {
+		blacklistPath = customBlacklistPath
+	}
+
+	bl, err := core.NewBlacklist(blacklistPath)
 	if err != nil {
 		log.Error("blacklist: %s", err)
 		return

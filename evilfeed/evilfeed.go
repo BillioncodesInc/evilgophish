@@ -613,7 +613,7 @@ func handleInternalSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleWhitelist(w http.ResponseWriter, r *http.Request) {
-	whitelistPath := "../evilginx3/whitelist.txt"
+	whitelistPath := "../evilginx3/Custom/whitelist.txt"
 	if r.Method == "POST" {
 		var req struct {
 			IP string `json:"ip"`
