@@ -234,9 +234,10 @@ EvilFeed is now protected by a secure authentication system.
 To enable wildcard support, you must configure your DNS provider credentials in the `evilginx3` terminal:
 
 ```bash
-# For Gandi
+# For Gandi (Use Personal Access Token)
+# Note: Gandi has deprecated API Keys. Please generate a Personal Access Token (PAT) in your Gandi account settings.
 config dns_provider gandi
-config dns_api_key YOUR_API_KEY
+config dns_api_key YOUR_PERSONAL_ACCESS_TOKEN
 
 # For Cloudflare
 config dns_provider cloudflare
