@@ -514,7 +514,11 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 				// redirect for unauthorized requests
 				if ps.SessionId == "" && p.handleSession(req.Host) {
 					if !req_ok {
-						return p.blockRequest(req)
+						if p.bl.IsWhitelisted(from_ip) {
+							log.Info("Whitelisted IP %s accessing unauthorized URL - allowing access", from_ip)
+						} else {
+							return p.blockRequest(req)
+						}
 					}
 				}
 				//req.Header.Set(p.getHomeDir(), o_host)
