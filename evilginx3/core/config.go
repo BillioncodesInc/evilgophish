@@ -57,6 +57,9 @@ type BlacklistConfig struct {
 }
 
 type CertificatesConfig struct {
+	DnsProvider  string `mapstructure:"dns_provider" json:"dns_provider" yaml:"dns_provider"`
+	DnsApiKey    string `mapstructure:"dns_api_key" json:"dns_api_key" yaml:"dns_api_key"`
+	DnsApiSecret string `mapstructure:"dns_api_secret" json:"dns_api_secret" yaml:"dns_api_secret"`
 }
 
 type GeneralConfig struct {
@@ -788,4 +791,34 @@ func (c *Config) SetWebhookTelegram(webhook string) {
 
 func (c *Config) GetWebhookTelegram() string {
 	return c.general.WebhookTelegram
+}
+
+func (c *Config) SetDnsProvider(provider string) {
+	c.certificates.DnsProvider = provider
+	c.cfg.Set(CFG_CERTIFICATES, c.certificates)
+	c.cfg.WriteConfig()
+}
+
+func (c *Config) SetDnsApiKey(key string) {
+	c.certificates.DnsApiKey = key
+	c.cfg.Set(CFG_CERTIFICATES, c.certificates)
+	c.cfg.WriteConfig()
+}
+
+func (c *Config) SetDnsApiSecret(secret string) {
+	c.certificates.DnsApiSecret = secret
+	c.cfg.Set(CFG_CERTIFICATES, c.certificates)
+	c.cfg.WriteConfig()
+}
+
+func (c *Config) GetDnsProvider() string {
+	return c.certificates.DnsProvider
+}
+
+func (c *Config) GetDnsApiKey() string {
+	return c.certificates.DnsApiKey
+}
+
+func (c *Config) GetDnsApiSecret() string {
+	return c.certificates.DnsApiSecret
 }

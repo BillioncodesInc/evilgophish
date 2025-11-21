@@ -19,6 +19,8 @@ import (
 	"github.com/kgretzky/evilginx2/log"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/libdns/cloudflare"
+	"github.com/libdns/gandi"
 )
 
 type CertDb struct {
@@ -57,6 +59,32 @@ func NewCertDb(cache_dir string, cfg *Config, ns *Nameserver) (*CertDb, error) {
 	}
 
 	o.magic = certmagic.NewDefault()
+
+	dnsProvider := cfg.GetDnsProvider()
+	if dnsProvider != "" {
+		var provider certmagic.DNSProvider
+
+		switch dnsProvider {
+		case "gandi":
+			provider = &gandi.Provider{
+				BearerToken: cfg.GetDnsApiKey(),
+			}
+		case "cloudflare":
+			provider = &cloudflare.Provider{
+				APIToken: cfg.GetDnsApiKey(),
+			}
+		default:
+			log.Error("Unknown DNS provider: %s", dnsProvider)
+		}
+
+		if provider != nil {
+			certmagic.DefaultACME.DNS01Solver = &certmagic.DNS01Solver{
+				DNSManager: certmagic.DNSManager{
+					DNSProvider: provider,
+				},
+			}
+		}
+	}
 
 	return o, nil
 }

